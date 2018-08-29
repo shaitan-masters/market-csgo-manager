@@ -2,23 +2,25 @@
 
 const path = require("path");
 
-const PRICE_ALLOWED_FLUCTUATION = 0.1;
-const PRICE_COMPROMISE = 0.1;
+const PRICE_ALLOWED_FLUCTUATION = 0;
+const PRICE_COMPROMISE = 0;
+const MIN_COMPROMISE = 30 * 100;
 
-const STEAM_TRADE_TTL = 60 * 1000;
+const STEAM_TRADE_TTL = 70 * 1000;
 
 const EventEmitter = require("events").EventEmitter;
 
 const EMarketMessage = require("./enums/EMarketMessage");
 const EMarketItemStatus = require("./enums/EMarketItemStatus");
-const EMarketEventStages = require("./enums/EMarketEventStages");
+const EMarketEventStage = require("./enums/EMarketEventStage");
 const EMarketEventType = require("./enums/EMarketEventType");
 
 const MarketKnapsack = require("./MarketKnapsack");
 const MarketSockets = require("./MarketSockets");
-const CSGOtm = require_module("CsgoTmApi");
+const CSGOtm = require("../../modules/CsgoTmApi");
 
 const logger = global.logger;
+const shuffle = global.shuffle;
 
 /** @type {MarketLayer} */
 let self;
@@ -93,8 +95,8 @@ MarketLayer.prototype.start = function() {
     self.isStarted = true;
 
     setWatcher(() => {
-        self.ping().catch((err) => {
-            /* noop */
+        self.ping().catch((e) => {
+            logger.error("Major error on market ping-pong", e);
         });
     }, self.pingInterval);
     setWatcher(self.requestBalanceUpdate, self.balanceUpdateInterval);
@@ -105,77 +107,91 @@ MarketLayer.prototype.start = function() {
     self._takeNextItems();
 };
 
-MarketLayer.prototype.buyItem = function(mhn, maxPrice, botWallet) {
-    return new Promise((res, rej) => {
-        self._getVariantsToBuy(mhn, maxPrice).then((list) => {
+MarketLayer.prototype.buyItem = function(mhn, maxPrice, botWallet, partnerId, tradeToken) {
+    return self._getVariantsToBuy(mhn, maxPrice).then((list) => {
+        let badItemPrice = false;
+
+        function buyAttempt() {
             if(list.length === 0) {
-                let err = new Error("Can't find item variants for " + mhn);
-                err.type = "noVariants";
+                let err = new Error("All buy attempts failed");
+                err.type = "failedAttempts";
 
                 throw err;
             }
 
-            function buyAttempt() {
-                if(list.length === 0) {
-                    let err = new Error("All buy attempts failed");
-                    err.type = "failedAttempts";
+            let instance = list.shift();
+            if(instance.price > botWallet) {
+                let err = new Error("Need to top up bots balance");
+                err.type = "needMoney";
+                err.needMoney = instance.price;
 
-                    throw err;
-                }
-                let instance = list.shift();
-                if(instance.price > botWallet) {
-                    let err = new Error("Need to top up bots balance");
-                    err.type = "needMoney";
-                    err.needMoney = instance.price;
+                throw err;
+            }
 
-                    throw err;
-                }
-
-                api.buyCreate(instance, instance.price).then((response) => {
-                    if(response.result === EMarketMessage.Ok) {
-                        res({
+            let err;
+            return api.buyCreate(instance, instance.price, {partnerId: partnerId, tradeToken: tradeToken}).then((response) => {
+                switch(response.result) {
+                    case EMarketMessage.Ok:
+                        return {
                             uiId: response.id,
                             classId: instance.classId,
                             instanceId: instance.instanceId,
                             price: instance.price,
-                        });
-                    } else if(response.result === EMarketMessage.NeedToTake) {
-                        let err = new Error("Need to withdraw items");
+                        };
+                    case EMarketMessage.NeedToTake:
+                        err = new Error("Need to withdraw items");
                         err.type = "needToTake";
 
                         throw err;
-                    } else if(response.result === EMarketMessage.BuyVariantExpired) {
-                        buyAttempt();
-                    } else if(response.result === EMarketItemStatus.SomebodyBuying) {
-                        buyAttempt();
-                    } else if(response.result === EMarketItemStatus.CreationError) {
-                        buyAttempt();
-                    } else if(response.result === EMarketMessage.BadItemPrice) {
-                        logger.trace(`${response.result}; mhn: ${mhn}; netid: ${instance.classId}_${instance.instanceId}; buy price: ${instance.price}; max price: ${maxPrice}`);
+                    case EMarketMessage.BuyOfferExpired:
+                    case EMarketMessage.SomebodyBuying:
+                    case EMarketMessage.RequestErrorNoList:
+                    case EMarketMessage.SteamProblems:
+                    case EMarketMessage.BotIsBanned:
+                        return buyAttempt();
+                    case EMarketMessage.BadOfferPrice:
+                        if(badItemPrice) {
+                            err = new Error("Unable to buy item for current price");
+                            err.type = "badItemPrice";
 
-                        buyAttempt();
-                    } else if(response.result === EMarketMessage.NeedMoney) {
-                        let err = new Error("Need to top up bots balance");
+                            throw err;
+                        } else {
+                            logger.trace(`${response.result}; mhn: ${mhn}; netid: ${instance.classId}_${instance.instanceId}; buy price: ${instance.price}; max price: ${maxPrice}`);
+
+                            badItemPrice = true;
+
+                            return buyAttempt();
+                        }
+                    case EMarketMessage.NeedMoney:
+                        err = new Error("Need to top up bots balance");
                         err.type = "needMoney";
                         err.needMoney = instance.price;
 
                         throw err;
-                    } else {
-                        console.log("buy res", response);
+                    case EMarketMessage.InvalidTradeLink:
+                        err = new Error("Your trade link is invalid");
+                        err.type = "invalidLink";
 
-                        buyAttempt();
-                    }
-                }).catch((err) => {
-                    //console.log("buy err", err);
+                        throw err;
+                    case EMarketMessage.SteamInventoryPrivate:
+                        err = new Error("Your Steam inventory is closed");
+                        err.type = "inventoryClosed";
 
-                    rej(err);
-                });
-            }
+                        throw err;
+                    case EMarketMessage.OfflineTradeProblem:
+                        err = new Error("Trade link failed, check your ability to trade");
+                        err.type = "unableOfflineTrade";
 
-            buyAttempt();
-        }).catch((err) => {
-            rej(err);
-        });
+                        throw err;
+                    default:
+                        console.log("buy res", response, response === EMarketItemStatus.BotIsBanned, response === EMarketItemStatus.SteamProblems);
+
+                        return buyAttempt();
+                }
+            });
+        }
+
+        return buyAttempt();
     });
 };
 
@@ -200,22 +216,21 @@ MarketLayer.prototype._getVariantsToBuy = function(mhn, maxPrice) {
                 offers: Number(item.offers),
             };
         }).filter((item) => {
-            return (!maxPrice || item.price <= allowedPrice && item.offers > 0);
+            return (!maxPrice || item.price <= allowedPrice) && item.offers > 0;
         }).sort((a, b) => {
             return a.price - b.price;
         });
     }
 
-    let searchObj = {market_hash_name: mhn};
-
-    return api.searchItemByName(searchObj).then((itemVariants) => {
+    return api.searchItemByName(mhn).then((itemVariants) => {
         if(itemVariants.success) {
             if(itemVariants.list && itemVariants.list.length > 0) {
                 let sortedVariants = prepareItems(itemVariants.list);
 
-                if(itemVariants.list.length > 0 && sortedVariants.list === 0) {
+                if(sortedVariants.length === 0) {
                     let err = new Error("There are variants, but all of them are too expensive");
-                    err.tooHighPrices = true;
+                    err.type = "tooHighPrices";
+                    err.lowestPrice = Math.min.apply(null, itemVariants.list.map((el) => el.price));
 
                     throw err;
                 }
@@ -223,22 +238,23 @@ MarketLayer.prototype._getVariantsToBuy = function(mhn, maxPrice) {
                 return sortedVariants;
             } else {
                 let err = new Error("Got empty list of item variants on TM");
-                err.noListings = true;
+                err.type = "noListings";
+                err.suggestedPrice = maxPrice;
 
                 throw err;
             }
         } else {
-            throw new Error("Can't get item variants on TM");
+            let err = new Error("Can't get item variants on TM");
+            err.type = "failedRequest";
+
+            throw err;
         }
     });
 };
 
 MarketLayer.prototype._computeMaxPrice = function(meanPrice) {
     let allowedPrice = meanPrice * (1 + PRICE_ALLOWED_FLUCTUATION);
-    let compromise = meanPrice * PRICE_COMPROMISE;
-    if(compromise < 100) {
-        compromise = 100;
-    }
+    let compromise = Math.max(meanPrice * PRICE_COMPROMISE, MIN_COMPROMISE);
 
     return allowedPrice + compromise;
 };
@@ -279,7 +295,7 @@ MarketLayer.prototype.setTradeToken = function(newToken) {
 
 MarketLayer.prototype.getTrades = function() {
     return api.accountGetTrades().then((trades) => {
-        let prepared = trades.map((item) => {
+        return trades.map((item) => {
             let ids = CSGOtm.getItemIds(item);
             // if(ids.instanceId === "0") {
             //     console.log("instanceId", item);
@@ -292,13 +308,21 @@ MarketLayer.prototype.getTrades = function() {
                 ui_bid: Number(item.ui_bid),
                 classId: ids.classId,
                 instanceId: ids.instanceId,
-                market_hash_name: item.i_market_hash_name,
+                market_hash_name: CSGOtm.getItemHash(item),
                 left: Number(item.left),
             };
         });
-
-        return prepared;
     });
+};
+
+MarketLayer.prototype.getTrade = function(uiId) {
+    return this.getTrades().then((trades) => {
+        return trades.find((trade) => trade.ui_id === Number(uiId));
+    });
+};
+
+MarketLayer.prototype.getTradeId = function(uiBid) {
+    return self._takeItemsFromBot(uiBid).then((botTrade) => botTrade.trade_id);
 };
 
 MarketLayer.prototype.requestBalanceUpdate = function() {
@@ -350,14 +374,22 @@ MarketLayer.prototype.ping = function() {
             }
         }
     }).catch((e) => {
-        logger.warn("Error occurred on pingPong request", e);
+        if(e.message !== EMarketMessage.CheckTokenOrMobile) {
+            logger.warn("Error occurred on pingPong request", e);
+        } else {
+            logger.warn("Error occurred on pingPong request", e.message);
+        }
 
-        throw e;
+        if(e.message !== EMarketMessage.CheckTokenOrMobile) {
+            throw e;
+        }
+
+        return null;
     });
 };
 
 MarketLayer.prototype._takeNextItems = function() {
-    let sleepTime = 10 * 1000;
+    let sleepTime = 5 * 1000;
 
     if(self.knapsack.takeItemsCount === 0) {
         //logger.log("No items to take, judging by knapsack");
@@ -366,48 +398,58 @@ MarketLayer.prototype._takeNextItems = function() {
         return;
     }
 
-    self._selectBotToTake().then((botData) => {
-        if(botData === false) {
-            //logger.log("No items to request. Sleep for a while..");
-            sleepTime = 15 * 1000;
+    self._clearTakeRequestsLog();
+    // prohibits multiple simultaneous withdrawals
+    /*if(Object.keys(self.takeRequests).length) {
+        //logger.log("We are already taking some items. Please, wait");
 
-            setTimeout(self._takeNextItems, sleepTime);
-            return;
-        }
+        setTimeout(self._takeNextItems, sleepTime);
+        return;
+    }*/
 
-        logger.log("Requesting " + botData.list.length + " item(s) from uiBot#" + botData.bid);
-        self._takeItemsFromBot(botData.bid).then((tradeData) => {
-            logger.log("Item(s) requested with trade#" + tradeData.trade_id + " and secret: '" + tradeData.secret + "'");
-
-            let itemsData = botData.list.map((item) => {
-                let ids = CSGOtm.getItemIds(item);
-
-                return {
-                    market_id: item.ui_id,
-                    trade_id: tradeData.trade_id,
-                    price: item.ui_price,
-                    class_id: ids.classId,
-                    instance_id: ids.instanceId,
-                };
-            });
-
-            self.emit("itemsUpdate", itemsData);
-
-            self._takeNextItems();
-        }).catch((err) => {
-            if(err.message === EMarketMessage.RequestErrorNoList) {
-                logger.warn("Request creation failed. Try again later");
-            } else {
-                logger.error(err);
-            }
-
-            self._takeNextItems();
-        });
-    }).catch((err) => {
-        logger.error(err);
-
-        self._takeNextItems();
-    });
+    // self._selectBotToTake().then((botData) => {
+    //     if(botData === false) {
+    //         //logger.log("No items to request. Sleep for a while..");
+    //         sleepTime = 10 * 1000;
+    //
+    //         setTimeout(self._takeNextItems, sleepTime);
+    //         return;
+    //     }
+    //
+    //     logger.log("Requesting " + botData.list.length + " item(s) from uiBot#" + botData.bid);
+    //     self._takeItemsFromBot(botData.bid).then((tradeData) => {
+    //         logger.log("Item(s) requested with trade#" + tradeData.trade_id + " and secret: '" + tradeData.secret + "'");
+    //
+    //         let itemsData = botData.list.map((item) => {
+    //             let ids = CSGOtm.getItemIds(item);
+    //
+    //             return {
+    //                 market_id: item.ui_id,
+    //                 trade_id: tradeData.trade_id,
+    //                 price: item.ui_price,
+    //                 class_id: ids.classId,
+    //                 instance_id: ids.instanceId,
+    //             };
+    //         });
+    //
+    //         self.emit("itemsUpdate", itemsData);
+    //
+    //         // by the way TM don't like to send items from multiple bots simultaneously, but we don't care
+    //         setTimeout(self._takeNextItems, sleepTime);
+    //     }).catch((err) => {
+    //         if(err.message === EMarketMessage.RequestErrorNoList) {
+    //             logger.warn("Request creation failed (no list). Try again later");
+    //         } else {
+    //             logger.error(err);
+    //         }
+    //
+    //         setTimeout(self._takeNextItems, sleepTime);
+    //     });
+    // }).catch((err) => {
+    //     logger.error(err);
+    //
+    //     self._takeNextItems();
+    // });
 };
 
 /**
@@ -417,8 +459,6 @@ MarketLayer.prototype._takeNextItems = function() {
  */
 MarketLayer.prototype._selectBotToTake = function() {
     return self.getTrades().then((trades) => {
-        self._clearTakeRequestsLog();
-
         let botsItems = {};
 
         trades.forEach((trade) => {
@@ -433,25 +473,38 @@ MarketLayer.prototype._selectBotToTake = function() {
                 botsItems[trade.ui_bid].list.push(trade);
             }
         });
-
         // debug
         //console.log("botsItems", Object.keys(botsItems).length);
 
-        if(Object.keys(botsItems).length === 0) {
+        let checkOrder = shuffle(Object.keys(botsItems));
+        if(checkOrder.length === 0) {
             return false;
         }
 
         // Selecting bot with max items count
-        let firstBot = Object.keys(botsItems)[0];
-        let bestVariant = botsItems[firstBot];
-        for(let uiBid in botsItems) {
+        let bestVariant = botsItems[checkOrder[0]];
+        checkOrder.forEach((uiBid) => {
             if(botsItems[uiBid].list.length > bestVariant.list.length) {
                 bestVariant = botsItems[uiBid];
             }
-        }
+        });
 
         return bestVariant;
     });
+};
+
+/**
+ * @param {TradeOffer} trade
+ */
+MarketLayer.prototype.captureTradeEnd = function(trade) {
+    for(let uiBid in self.takeRequests) {
+        if(self.takeRequests[uiBid].tradeId === String(trade.id)) {
+            // we delay this delete, because TM is slooooow
+            setTimeout(() => {
+                delete self.takeRequests[uiBid];
+            }, 5 * 1000);
+        }
+    }
 };
 
 MarketLayer.prototype._clearTakeRequestsLog = function() {
@@ -465,10 +518,11 @@ MarketLayer.prototype._clearTakeRequestsLog = function() {
 MarketLayer.prototype._takeItemsFromBot = function(uiBid) {
     return api.sellCreateTradeRequest(uiBid, "out").then((answer) => {
         if(answer.success) {
-            self.takeRequests[uiBid] = {
+            /*self.takeRequests[uiBid] = {
                 bid: uiBid,
                 time: Date.now(),
-            };
+                tradeId: String(answer.trade),
+            };*/
 
             return {
                 trade_id: answer.trade,
@@ -487,11 +541,13 @@ MarketLayer.prototype._takeItemsFromBot = function(uiBid) {
 MarketLayer.prototype.checkItemState = function(marketId, operationDate) {
     let start, end;
     if(operationDate) {
-        start = new Date(operationDate.getTime());
-        start.setSeconds(start.getSeconds() - 30);
+        let range = 15 * 60 * 1000;
 
-        end = new Date(operationDate.getTime());
-        end.setSeconds(end.getSeconds() + 30);
+        start = new Date();
+        start.setTime(operationDate.getTime() - range);
+
+        end = new Date();
+        end.setTime(operationDate.getTime() + range);
     } else {
         start = new Date(0);
         end = new Date();
@@ -503,16 +559,19 @@ MarketLayer.prototype.checkItemState = function(marketId, operationDate) {
                 return event.h_event === EMarketEventType.BuyGo && Number(event.item) === marketId;
             });
             if(!buyEvent) {
-                throw new Error("Event for marketItem#" + marketId + " not found");
+                let err = new Error("Event for marketItem#" + marketId + " not found");
+                err.type = "notFound";
+
+                throw err;
             }
 
             let stage = Number(buyEvent.stage);
             let itemState = {};
-            if(stage === EMarketEventStages.Ready) {
+            if(stage === EMarketEventStage.Ready) {
                 itemState.text = "ready";
-            } else if(stage === EMarketEventStages.Waiting) {
+            } else if(stage === EMarketEventStage.Waiting) {
                 itemState.text = "waiting";
-            } else if(stage === EMarketEventStages.Unsuccessful) {
+            } else if(stage === EMarketEventStage.Unsuccessful) {
                 itemState.text = "unsuccessful";
             }
 

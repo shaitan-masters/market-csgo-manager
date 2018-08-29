@@ -139,6 +139,8 @@ MarketSockets.prototype._createWebSockets = function() {
  * @param {String} msg - Socket message
  */
 MarketSockets.prototype.handleMsg = function(msg) {
+    //console.log(msg);
+
     if(msg === EMarketWsEvent.Pong) {
         //logger.log("market ws pong");
 
@@ -188,6 +190,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             ui_id: Number(data.ui_id),
             ui_status: Number(data.ui_status),
             ui_price: Math.round(Number(data.ui_price) * 100),
+            update: false,
         };
         self.emit("itemAdd", prepared);
 
@@ -212,6 +215,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
         let prepared = {
             ui_id: Number(data.id),
             ui_status: Number(data.status),
+            update: true,
         };
 
         if(prepared.ui_status === EMarketItemStatus.NeedToTake) {
@@ -221,6 +225,10 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             self.emit("itemTake", prepared);
         } else if(prepared.ui_status === EMarketItemStatus.Delivered) {
             self.emit("itemRemove", prepared);
+        } else if(prepared.ui_status === EMarketItemStatus.Pending) {
+            prepared.left = Number(data.left || DEFAULT_LEFT_TIME);
+
+            self.emit("itemUpdate", prepared);
         }
     } else if(type === EMarketWsEvent.Notification) {
         data = JSON.parse(data);
@@ -269,7 +277,7 @@ MarketSockets.prototype._extractFloatNumber = function(rawBalance) {
 };
 
 /**
- * Says if sockets is stuck and didn't communitace for too long
+ * Says if sockets is stuck and didn't communicate for too long
  * @return {boolean}
  */
 MarketSockets.prototype.isStuck = function() {
@@ -280,7 +288,7 @@ MarketSockets.prototype.isStuck = function() {
  * @private
  */
 MarketSockets.prototype._updateWatchdogClock = function() {
-    const offset = 50 * 60 * 1000;
+    const offset = 60 * 1000;
 
     pingWatchdogClock = Date.now() + offset;
 };
@@ -300,6 +308,7 @@ MarketSockets.prototype._setPingWatchdog = function() {
     self._pingWatchdog = setInterval(() => {
         if(self.isStuck()) {
             logger.log("Market sockets stopped answering");
+            process.exit();
         }
     }, 5 * 1000);
 };

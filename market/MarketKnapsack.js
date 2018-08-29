@@ -9,7 +9,7 @@ const logger = global.logger;
 /** @type {MarketKnapsack} */
 let self;
 
-/** @type {MarketLayer} */
+/** @type {OPMarketLayer} */
 let _market;
 
 module.exports = MarketKnapsack;
@@ -17,7 +17,7 @@ module.exports = MarketKnapsack;
 require("util").inherits(MarketKnapsack, EventEmitter);
 
 /**
- * @param {MarketLayer} opts.market
+ * @param {OPMarketLayer} opts.market
  * @param {Number} [opts.checkInterval] - Period if checking knapsack for consistency
  * @param {Number} [opts.checkIntervalWithWs] - Period of checking if we connected to market sockets
  * @constructor

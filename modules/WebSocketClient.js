@@ -1,7 +1,7 @@
 "use strict";
 
 const EventEmitter = require("events").EventEmitter;
-const WebSocket = require("uws");
+const WebSocket = require("ws");
 
 /** @type {WebSocketClient} */
 let self;

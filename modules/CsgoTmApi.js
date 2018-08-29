@@ -3,6 +3,8 @@
 const parseUrl = require("url").parse;
 const fs = require("fs");
 
+const CSGOtm = require("@malsa/node-csgotm-api");
+
 /**
  * Used as workaround of
  * https://github.com/Xfaider48/node-csgotm-api/pull/4 and
@@ -11,13 +13,10 @@ const fs = require("fs");
  * Currently there is no need in this wrapper, but I will leave it for future bugs
  */
 
-const CSGOtm = require("node-csgotm-api");
-
-/** @type {CSGOtmAPI} */
-const API = CSGOtm.API;
-
 module.exports = TMCustomAPI;
+module.exports.CSGOtmAPIError = CSGOtm.CSGOtmAPIError;
 
+// Inheritance
 require("util").inherits(TMCustomAPI, CSGOtm.API);
 // Inherits static methods/properties
 let skipList = ["length", "name", "prototype"];
@@ -27,46 +26,53 @@ Object.getOwnPropertyNames(CSGOtm.API).forEach((prop) => {
     }
 });
 
+let errorPath;
+
 /**
- * @type {CSGOtmAPI}
+ * @extends {CSGOtmAPI}
+ * @inheritDoc {CSGOtmAPI}
  *
- * @param {String}     [options.htmlAnswerLogPath=null] Path, where HTML answers from API would be saved
+ * @param {String} [options.htmlAnswerLogPath=null] - path, where HTML answers from API would be saved
+ * @param {Boolean} [options.extendedError=true]
  */
 function TMCustomAPI(options) {
-    TMCustomAPI.super_.apply(this, arguments);
+    options.extendedError = true;
 
     // Adds trailing slash
     if(options.htmlAnswerLogPath) {
         if(!options.htmlAnswerLogPath.endsWith("/")) {
             options.htmlAnswerLogPath += "/";
         }
+
+        errorPath = options.htmlAnswerLogPath;
     }
 
-    this.options.htmlAnswerLogPath = options.htmlAnswerLogPath || null;
+    TMCustomAPI.super_.apply(this, arguments);
 }
 
 /**
- * JSON request
+ * JSON request. Here we add html error capturing
  *
  * @param {String} url
- * @param {String} [errorSavePath=null]
  * @param {Object} [gotOptions] Options for 'got' module
  *
  * @returns {Promise}
  */
-TMCustomAPI.requestJSON = function(url, errorSavePath = null, gotOptions = {}) {
-    return CSGOtm.API.requestJSON(url, gotOptions).catch(error => {
-        if(error.nested.response && errorSavePath) {
+CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
+    return TMCustomAPI.requestJSON(url, gotOptions).catch(error => {
+        let response = error.response || error.nested.response || null;
+
+        if(!(error instanceof CSGOtm.CSGOtmAPIError) && typeof response.body === "string" && errorPath) {
             try {
-                JSON.parse(error.nested.response.body);
+                JSON.parse(response.body);
             } catch(e) {
                 let parsedUrl = parseUrl(url);
 
-                let urlPath = parsedUrl.pathname.replace(/^\/|\/$/g, "").replace(/[\s]/, "_").replace("/", "_");
+                let urlPath = parsedUrl.pathname.replace(/^\/|\/$/g, "").replace(/[\s]/, "_").replace(/\//g, "_");
                 let dateString = new Date().toISOString();
                 let fileName = `${urlPath}_${dateString}.html`;
 
-                fs.writeFile(errorSavePath + fileName, error.nested.response.body, (err) => {
+                fs.writeFile(errorPath + fileName, response.body, (err) => {
                     if(err) {
                         console.log("Failed to save html answer from tm", err);
                     }
@@ -74,25 +80,13 @@ TMCustomAPI.requestJSON = function(url, errorSavePath = null, gotOptions = {}) {
             }
         }
 
+        // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
+        try {
+            delete error.response;
+            delete error.gotOptions;
+        } catch(e) {
+        }
+
         throw error;
-    });
-};
-
-/**
- * Simple API call with key
- *
- * @param {String} method
- * @param {Object} [gotOptions] Options for 'got' module
- *
- * @returns {Promise}
- */
-TMCustomAPI.prototype.callMethodWithKey = function(method, gotOptions = {}) {
-    let url = `${this.apiUrl}/${encodeURI(method)}/?key=${this.options.apiKey}`;
-    if(!Object.keys(gotOptions).length) {
-        gotOptions = this.options.defaultGotOptions;
-    }
-
-    return this.limitRequest(() => {
-        return TMCustomAPI.requestJSON(url, this.options.htmlAnswerLogPath, gotOptions);
     });
 };

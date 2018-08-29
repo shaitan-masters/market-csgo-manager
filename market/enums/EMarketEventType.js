@@ -19,7 +19,7 @@ const EMarketEventType = {
     SellTf: "sell_tf", // продажа предмета в TF2.tm
 
     BuyGt: "buy_gt", // покупка предмета в Gifts.TM
-    SellGt: "sell_gt", // продажа/ предмета в Gifts.TM
+    SellGt: "sell_gt", // продажа предмета в Gifts.TM
 };
 Object.freeze(EMarketEventType);
 
