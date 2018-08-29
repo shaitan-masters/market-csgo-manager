@@ -1,5 +1,7 @@
 "use strict";
 
+const WS_URL = "wss://wsn.dota2.net/wsn/";
+
 const DEFAULT_LEFT_TIME = -1;
 
 const EventEmitter = require("events").EventEmitter;
@@ -8,101 +10,97 @@ const EMarketWsEvent = require("./enums/EMarketWsEvent");
 const EMarketMessage = require("./enums/EMarketMessage");
 const EMarketItemStatus = require("./enums/EMarketItemStatus");
 
-const WebSocketClient = require_module("WebSocketClient");
-
-const logger = global.logger;
-
-/** @type {MarketSockets} */
-let self;
-
-/** @type {MarketLayer} */
-let _layer;
+const WebSocketClient = require("../modules/WebSocketClient");
 
 let pingWatchdogClock;
 
 module.exports = MarketSockets;
-
 require("util").inherits(MarketSockets, EventEmitter);
 
 /**
- * @param {MarketLayer} opts.layer
- * @param {HttpsProxyAgent} [opts.proxy]
- * @param {Number} [opts.pingInterval]
+ * @param {MarketLayer} opts.layer - market layer. We need it to obtain auth code
+ * @param {HttpsProxyAgent} [opts.proxy=null] - proxy agent for connection to sockets
+ * @param {Number} [opts.pingInterval=15000] - interval to ping in milliseconds
  * @constructor
+ * @extends {EventEmitter}
  */
 function MarketSockets(opts) {
-    self = this;
+    /** @var {MarketLayer} */
+    this._layer = opts.layer;
 
-    _layer = opts.layer;
-
-    this.pingInterval = opts.pingInterval || 15 * 1000;
-    this.proxy = opts.proxy || null;
-
-    this.ws = self._createWebSockets();
+    this._pingInterval = opts.pingInterval || 30 * 1000;
+    this._proxy = opts.proxy || null;
 
     this._pingWatchdog = null;
     this._setPingWatchdog();
 
-    this.authorized = false;
+    this._authorized = false;
+
+    this.ws = this._createWebSockets();
 }
 
+/**
+ * Starts WS session
+ */
 MarketSockets.prototype.start = function() {
-    self.ws.open("wss://wsn.dota2.net/wsn/", {
-        agent: self.proxy,
-        _autoReconnectInterval: 2.5 * 1000,
-        _pingInterval: self.pingInterval,
+    this.ws.open({
+        agent: this._proxy
     });
 };
 
 /**
- * @return {Boolean} - Are we currently connectes to sockets
+ * @return {Boolean} - are we currently connected to sockets
  */
 MarketSockets.prototype.isConnected = function() {
-    return self.ws.connected && self.authorized && !self.isStuck();
+    return this.ws.connected && this._authorized && !this.isStuck();
 };
 
 /**
- * @event MarketSockets#connected
- */
-/**
- * @event MarketSockets#error
- * @type {Object} err
- */
-
-/**
- * Creates new connection
+ * Creates new connection object, but doesn't establish it
  * @return {WebSocketClient}
  * @private
  */
 MarketSockets.prototype._createWebSockets = function() {
-    let wsClient = new WebSocketClient();
+    let wsClient = new WebSocketClient(WS_URL, {
+        reconnectInterval: 2.5 * 1000,
+        _pingInterval: this._pingInterval,
+    });
 
+    // Custom ping/pong procedure
     wsClient.ping = function() {
-        this.instance.send("ping");
+        this.instance.send("ping", (err) => {
+            if(err) {
+                this.emit("error", err);
+            }
+        });
     };
 
-    wsClient.on("open", () => {
-        logger.log("Connected to market web socket");
-
-        self.emit("connected");
-
-        self.auth();
-    });
-    wsClient.on("message", (msg) => {
-        //console.log("ws msg: ", msg);
-
-        self.handleMsg(msg);
-    });
-    wsClient.on("error", (err) => {
-        logger.trace("market sockets error ", err);
-
-        self.emit("error", err);
-    });
-    wsClient.on("close", () => {
-        self.authorized = false;
-    });
 
     return wsClient;
+};
+
+/**
+ * @param {WebSocketClient} client
+ */
+MarketSockets.prototype._bindClientEvents = function(client) {
+    client.on("open", () => {
+        this.emit("connected");
+
+        this._auth();
+    });
+    client.on("message", (msg) => {
+        //console.log("ws msg: ", msg);
+
+        this._handleMsg(msg);
+    });
+    client.on("error", (err) => {
+        this.emit("error", err);
+    });
+    client.on("close", () => {
+        this._authorized = false;
+    });
+
+    return client;
 };
 
 /**
