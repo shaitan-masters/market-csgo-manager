@@ -1,7 +1,11 @@
 "use strict";
 
-/** @enum {String} */
-module.exports = {
+/**
+ * Текущий статус прдмета в инвентаре маркета, возвращаемый методом `Trades`
+ * @readonly
+ * @enum {Number}
+ */
+const EMarketItemStatus = {
     Selling: 1, // Вещь выставлена на продажу.
     NeedToGive: 2, // Вы продали вещь и должны ее передать боту.
     Pending: 3, // Ожидание передачи боту купленной вами вещи от продавца.
@@ -10,3 +14,6 @@ module.exports = {
 
     Unknown1: 6, // It exists in market scripts code, but IDK what does it mean
 };
+Object.freeze(EMarketItemStatus);
+
+module.exports = EMarketItemStatus;
