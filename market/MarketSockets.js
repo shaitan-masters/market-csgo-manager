@@ -1,7 +1,11 @@
 "use strict";
 
-const WS_URL = "wss://wsn.dota2.net/wsn/";
+// Logic specific constants
+const WATCHDOG_TIME = 60 * 1000;
+const WATCHDOG_INTERVAL = 5 * 1000;
 
+// Market specific things
+const WS_URL = "wss://wsn.dota2.net/wsn/";
 const DEFAULT_LEFT_TIME = -1;
 
 const EventEmitter = require("events").EventEmitter;
@@ -11,8 +15,6 @@ const EMarketMessage = require("./enums/EMarketMessage");
 const EMarketItemStatus = require("./enums/EMarketItemStatus");
 
 const WebSocketClient = require("../modules/WebSocketClient");
-
-let pingWatchdogClock;
 
 module.exports = MarketSockets;
 require("util").inherits(MarketSockets, EventEmitter);
@@ -31,9 +33,6 @@ function MarketSockets(opts) {
     this._pingInterval = opts.pingInterval || 30 * 1000;
     this._proxy = opts.proxy || null;
 
-    this._pingWatchdog = null;
-    this._setPingWatchdog();
-
     this._authorized = false;
 
     this.ws = this._createWebSockets();
@@ -46,13 +45,15 @@ MarketSockets.prototype.start = function() {
     this.ws.open({
         agent: this._proxy
     });
+
+    this._setPingWatchdog();
 };
 
 /**
  * @return {Boolean} - are we currently connected to sockets
  */
 MarketSockets.prototype.isConnected = function() {
-    return this.ws.connected && this._authorized && !this.isStuck();
+    return this.ws.isConnected() && this._authorized && !this.isStuck();
 };
 
 /**
@@ -62,45 +63,35 @@ MarketSockets.prototype.isConnected = function() {
  */
 MarketSockets.prototype._createWebSockets = function() {
     let wsClient = new WebSocketClient(WS_URL, {
-        reconnectInterval: 2.5 * 1000,
-        _pingInterval: this._pingInterval,
+        pingInterval: this._pingInterval,
+        minReconnectionDelay: (1 + Math.random()) * 1000,
+        maxReconnectionDelay: 7500,
     });
 
     // Custom ping/pong procedure
     wsClient.ping = function() {
-        this.instance.send("ping", (err) => {
-            if(err) {
-                this.emit("error", err);
-            }
-        });
+        this.send("ping");
     };
 
-
-    return wsClient;
-};
-
-/**
- * @param {WebSocketClient} client
- */
-MarketSockets.prototype._bindClientEvents = function(client) {
-    client.on("open", () => {
+    // Bind events
+    wsClient.on("open", () => {
         this.emit("connected");
 
         this._auth();
     });
-    client.on("message", (msg) => {
+    wsClient.on("message", (msg) => {
         //console.log("ws msg: ", msg);
 
         this._handleMsg(msg);
     });
-    client.on("error", (err) => {
+    wsClient.on("error", (err) => {
         this.emit("error", err);
     });
-    client.on("close", () => {
+    wsClient.on("close", () => {
         this._authorized = false;
     });
 
-    return client;
+    return wsClient;
 };
 
 /**
@@ -135,8 +126,9 @@ MarketSockets.prototype._bindClientEvents = function(client) {
 /**
  * Completely handles all messages from market sockets
  * @param {String} msg - Socket message
+ * @todo
  */
-MarketSockets.prototype.handleMsg = function(msg) {
+MarketSockets.prototype._handleMsg = function(msg) {
     //console.log(msg);
 
     if(msg === EMarketWsEvent.Pong) {
@@ -175,6 +167,7 @@ MarketSockets.prototype.handleMsg = function(msg) {
  * @param {String} type
  * @param {Object|null} data
  * @private
+ * @todo
  */
 MarketSockets.prototype._handleMsgByType = function(type, data) {
     if(type === EMarketWsEvent.BalanceUpdate) {
@@ -255,12 +248,12 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
  * Sends auth message to market sockets,
  * so we start to receive private events about our account
  */
-MarketSockets.prototype.auth = function() {
-    _layer._getWsAuth().then((authKey) => {
-        self.authorized = true;
+MarketSockets.prototype._auth = function() {
+    this._layer._getWsAuth().then((authKey) => {
+        this.ws.send(authKey);
+        this.ws.ping();
 
-        self.ws.send(authKey);
-        self.ws.ping();
+        this._authorized = true;
     });
 };
 
@@ -271,42 +264,42 @@ MarketSockets.prototype.auth = function() {
  * @private
  */
 MarketSockets.prototype._extractFloatNumber = function(rawBalance) {
-    return Math.round(parseFloat(rawBalance.replace(/[^\d\.]*/g, "")) * 100);
+    return Math.round(parseFloat(rawBalance.replace(/[^\d.]*/g, "")) * 100);
 };
 
 /**
  * Says if sockets is stuck and didn't communicate for too long
- * @return {boolean}
+ * @return {Boolean}
  */
 MarketSockets.prototype.isStuck = function() {
-    return pingWatchdogClock - Date.now() < 0;
+    return this._watchdogTime + WATCHDOG_TIME - Date.now() < 0;
 };
 
 /**
  * @private
  */
 MarketSockets.prototype._updateWatchdogClock = function() {
-    const offset = 60 * 1000;
-
-    pingWatchdogClock = Date.now() + offset;
+    this._watchdogTime = Date.now();
 };
 
 /**
  * @private
  */
 MarketSockets.prototype._setPingWatchdog = function() {
-    self._updateWatchdogClock();
-    self.on("pong", () => {
-        self._updateWatchdogClock();
-    });
-
-    if(self._pingWatchdog) {
-        clearInterval(self._pingWatchdog);
+    if(this._pingWatchdog) {
+        return;
     }
-    self._pingWatchdog = setInterval(() => {
-        if(self.isStuck()) {
-            logger.log("Market sockets stopped answering");
-            process.exit();
+
+    // Set timer
+    this._updateWatchdogClock();
+    this.ws.on("message", () => this._updateWatchdogClock());
+
+    // Set watcher
+    this._pingWatchdog = setInterval(() => {
+        if(this.isStuck()) {
+            //console.log("Market sockets stopped answering");
+
+            this.emit("stuck");
         }
-    }, 5 * 1000);
+    }, WATCHDOG_INTERVAL);
 };
