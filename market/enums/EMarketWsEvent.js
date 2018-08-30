@@ -18,7 +18,9 @@ const EMarketWsEvent = {
     MarketNewItemBought: "history_go", // Куплен новый предмет на маркете
 
     InventoryUpdate: "invcache_go", // Кэш инвентаря Steam обновлен
+    SetDirect: "setdirect", // Изменение статуса сообщения "Внимание! Вы не можете продавать!"
 
+    AdminMessage: "imp_msg", // Важное сообщение от администрации
     Notification: "webnotify", // Ответ тех. поддержки
     BetNotificationCs: "webnotify_bets_cs", // Спам
     BetNotificationGo: "webnotify_bets_go", // Спам

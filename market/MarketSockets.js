@@ -14,6 +14,8 @@ const EMarketWsEvent = require("./enums/EMarketWsEvent");
 const EMarketMessage = require("./enums/EMarketMessage");
 const EMarketItemStatus = require("./enums/EMarketItemStatus");
 
+const ESocketEvent = require("./enums/ESocketEvent");
+
 const WebSocketClient = require("../modules/WebSocketClient");
 
 module.exports = MarketSockets;
@@ -30,7 +32,7 @@ function MarketSockets(opts) {
     /** @var {MarketLayer} */
     this._layer = opts.layer;
 
-    this._pingInterval = opts.pingInterval || 30 * 1000;
+    this._pingInterval = opts.pingInterval || 20 * 1000;
     this._proxy = opts.proxy || null;
 
     this._authorized = false;
@@ -57,6 +59,20 @@ MarketSockets.prototype.isConnected = function() {
 };
 
 /**
+ * @event MarketSockets#connected
+ */
+/**
+ * @event MarketSockets#authorized
+ */
+/**
+ * @event MarketSockets#deauthorized
+ */
+/**
+ * @event MarketSockets#error
+ * @param {Object}
+ */
+
+/**
  * Creates new connection object, but doesn't establish it
  * @return {WebSocketClient}
  * @private
@@ -75,7 +91,7 @@ MarketSockets.prototype._createWebSockets = function() {
 
     // Bind events
     wsClient.on("open", () => {
-        this.emit("connected");
+        this.emit(ESocketEvent.Connected);
 
         this._auth();
     });
@@ -85,23 +101,28 @@ MarketSockets.prototype._createWebSockets = function() {
         this._handleMsg(msg);
     });
     wsClient.on("error", (err) => {
-        this.emit("error", err);
+        this.emit(ESocketEvent.Error, err);
     });
     wsClient.on("close", () => {
         this._authorized = false;
+
+        this.emit(ESocketEvent.DeAuth);
     });
 
     return wsClient;
 };
 
 /**
+ * Ping response
  * @event MarketSockets#pong
  */
 /**
+ * Balance changed
  * @event MarketSockets#balance
- * @type {Number} - Balance in cents
+ * @type {Number} - balance in cents
  */
 /**
+ * New item bought
  * @event MarketSockets#itemAdd
  * @type {Object}
  * @property {Number} ui_id
@@ -109,6 +130,7 @@ MarketSockets.prototype._createWebSockets = function() {
  * @property {Number} ui_price
  */
 /**
+ * Item ready to take
  * @event MarketSockets#itemTake
  * @type {Object}
  * @property {Number} ui_id
@@ -117,6 +139,7 @@ MarketSockets.prototype._createWebSockets = function() {
  * @property {Number} left
  */
 /**
+ * Item removed from market inventory
  * @event MarketSockets#itemRemove
  * @type {Object}
  * @property {Number} ui_id
@@ -126,22 +149,22 @@ MarketSockets.prototype._createWebSockets = function() {
 /**
  * Completely handles all messages from market sockets
  * @param {String} msg - Socket message
- * @todo
  */
 MarketSockets.prototype._handleMsg = function(msg) {
     //console.log(msg);
 
     if(msg === EMarketWsEvent.Pong) {
-        //logger.log("market ws pong");
+        //console.log("market ws pong");
+        this.emit(ESocketEvent.Pong);
 
-        self.emit("pong");
         return;
     }
     if(msg === EMarketWsEvent.AuthFailed) {
-        logger.error("Auth failed. Trying to authorize again");
+        console.error("Auth failed. Trying to authorize again");
 
-        self.authorized = false;
-        self.auth();
+        this._authorized = false;
+        this._auth();
+
         return;
     }
 
@@ -149,58 +172,60 @@ MarketSockets.prototype._handleMsg = function(msg) {
     try {
         json = JSON.parse(msg);
     } catch(e) {
-        logger.warn("This message doesn't look like a valid JSON: " + msg);
+        console.warn("This message doesn't look like a valid JSON: " + msg);
+
         return;
     }
 
     try {
         data = JSON.parse(json.data);
     } catch(e) {
-        logger.warn("This data doesn't look like a valid JSON: " + json.data);
+        console.warn("This data doesn't look like a valid JSON: " + json.data);
+
         return;
     }
 
-    self._handleMsgByType(json.type, data);
+    this._handleMsgByType(json.type, data);
 };
 
 /**
  * @param {String} type
  * @param {Object|null} data
  * @private
- * @todo
  */
 MarketSockets.prototype._handleMsgByType = function(type, data) {
-    if(type === EMarketWsEvent.BalanceUpdate) {
-        let parsed = self._extractFloatNumber(data);
+    //console.log("message", type, data);
+    const extractLeftTime = (data) => Number(data.left || DEFAULT_LEFT_TIME);
 
-        self.emit("balance", parsed);
-    } else if(type === EMarketWsEvent.ItemAdd) {
+    if(type === EMarketWsEvent.BalanceUpdate) {
+        let parsed = this._extractFloatNumber(data);
+        this.emit(ESocketEvent.BalanceUpdate, parsed);
+
+        return;
+    }
+    if(type === EMarketWsEvent.ItemAdd) {
         //console.log("ItemAdd", data);
 
         let prepared = {
             ui_id: Number(data.ui_id),
             ui_status: Number(data.ui_status),
-            ui_price: Math.round(Number(data.ui_price) * 100),
+            ui_price: Math.round(Number(data.ui_price) * 100), // convert to cents
             update: false,
         };
-        self.emit("itemAdd", prepared);
+        this.emit(ESocketEvent.ItemAdd, prepared);
 
         if(prepared.ui_status === EMarketItemStatus.Delivered) {
-            let change = {
-                ui_id: Number(data.ui_id),
-                ui_status: Number(data.ui_status),
+            let extended = Object.assign({}, prepared, {
                 ui_bid: Number(data.ui_bid),
-                left: Number(data.left || DEFAULT_LEFT_TIME),
-            };
+                left: extractLeftTime(data),
+            });
 
-            self.emit("itemTake", change);
+            this.emit(ESocketEvent.ItemTake, extended);
         }
-    } else if(type === EMarketWsEvent.ItemOut) {
-        //console.log("ItemOut", data);
 
-        // Currently we are not interested, because this event is
-        // for items that we have to send, but we only buy items
-    } else if(type === EMarketWsEvent.ItemStatusChange) {
+        return;
+    }
+    if(type === EMarketWsEvent.ItemStatusChange) {
         //console.log("ItemStatusChange", data);
 
         let prepared = {
@@ -209,19 +234,26 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             update: true,
         };
 
+        let event;
         if(prepared.ui_status === EMarketItemStatus.NeedToTake) {
             prepared.ui_bid = Number(data.bid);
-            prepared.left = Number(data.left || DEFAULT_LEFT_TIME);
+            prepared.left = extractLeftTime(data);
 
-            self.emit("itemTake", prepared);
+            event = ESocketEvent.ItemTake;
         } else if(prepared.ui_status === EMarketItemStatus.Delivered) {
-            self.emit("itemRemove", prepared);
+            event = ESocketEvent.ItemRemove;
         } else if(prepared.ui_status === EMarketItemStatus.Pending) {
-            prepared.left = Number(data.left || DEFAULT_LEFT_TIME);
+            prepared.left = extractLeftTime(data);
 
-            self.emit("itemUpdate", prepared);
+            event = ESocketEvent.ItemUpdate;
         }
-    } else if(type === EMarketWsEvent.Notification) {
+
+        this.emit(event, prepared);
+
+        return;
+    }
+
+    if(type === EMarketWsEvent.Notification) {
         data = JSON.parse(data);
         if(data.text && data.text === EMarketMessage.ItemReadyToTake) {
             // nothing to do right now
@@ -229,18 +261,24 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
         } else if(data.text && data.text === EMarketMessage.SupportAnswer) {
             /* noop */
         } else {
-            logger.warn("Notification from market administration: ", data);
+            console.warn("Notification from market administration: ", data);
         }
+    } else if(type === EMarketWsEvent.ItemOut) {
+        //console.log("ItemOut", data);
+
+        // Currently we are not interested, because this event is
+        // for items that we have to send, but we only buy items
     } else if(type === EMarketWsEvent.InventoryUpdate) {
-        // We are not interested in this event
-        // noop
+        // Steam inventory updated
+        // We are not interested in this event -> noop
     } else if(type === EMarketWsEvent.BetNotificationCs || type === EMarketWsEvent.BetNotificationGo) {
         // Tells us about bets promos. We are completely not interested in it
-
         // If you want to see it in logs uncomment the line below
         //console.log("BetNotification", type, JSON.parse(data));
+    } else if(type === EMarketWsEvent.AdminMessage || type === EMarketWsEvent.SetDirect) {
+        // Just ignore
     } else {
-        logger.warn("Unsupported ws message type '" + type + "'", data);
+        console.warn("Unsupported ws message type '" + type + "'", data);
     }
 };
 
@@ -254,6 +292,8 @@ MarketSockets.prototype._auth = function() {
         this.ws.ping();
 
         this._authorized = true;
+
+        this.emit(ESocketEvent.Auth);
     });
 };
 
@@ -299,7 +339,7 @@ MarketSockets.prototype._setPingWatchdog = function() {
         if(this.isStuck()) {
             //console.log("Market sockets stopped answering");
 
-            this.emit("stuck");
+            this.emit(ESocketEvent.Stuck);
         }
     }, WATCHDOG_INTERVAL);
 };
