@@ -22,18 +22,17 @@ module.exports = MarketSockets;
 require("util").inherits(MarketSockets, EventEmitter);
 
 /**
- * @param {MarketLayer} opts.layer - market layer. We need it to obtain auth code
- * @param {HttpsProxyAgent} [opts.proxy=null] - proxy agent for connection to sockets
- * @param {Number} [opts.pingInterval=15000] - interval to ping in milliseconds
+ * @param {CSocketsConfig} config
+ * @param {MarketLayer} layer - market layer. We need it to obtain auth code
  * @constructor
  * @extends {EventEmitter}
  */
-function MarketSockets(opts) {
+function MarketSockets(config, layer) {
     /** @var {MarketLayer} */
-    this._layer = opts.layer;
+    this._layer = layer;
 
-    this._pingInterval = opts.pingInterval || 20 * 1000;
-    this._proxy = opts.proxy || null;
+    this._pingInterval = config.pingInterval;
+    this._proxy = config.proxy;
 
     this._authorized = false;
 
@@ -287,7 +286,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
  * so we start to receive private events about our account
  */
 MarketSockets.prototype._auth = function() {
-    this._layer._getWsAuth().then((authKey) => {
+    this._layer.getWsAuth().then((authKey) => {
         this.ws.send(authKey);
         this.ws.ping();
 

@@ -1,11 +1,5 @@
 "use strict";
 
-const path = require("path");
-
-const PRICE_ALLOWED_FLUCTUATION = 0;
-const PRICE_COMPROMISE = 0;
-const MIN_COMPROMISE = 30 * 100;
-
 const STEAM_TRADE_TTL = 70 * 1000;
 
 const EventEmitter = require("events").EventEmitter;
@@ -15,96 +9,57 @@ const EMarketItemStatus = require("./enums/EMarketItemStatus");
 const EMarketEventStage = require("./enums/EMarketEventStage");
 const EMarketEventType = require("./enums/EMarketEventType");
 
-const MarketKnapsack = require("./MarketKnapsack");
-const MarketSockets = require("./MarketSockets");
-const CSGOtm = require("../../modules/CsgoTmApi");
+const CSGOtm = require("../modules/CsgoTmApi");
+const FnExtensions = require("../modules/FnExtensions");
 
-const logger = global.logger;
-const shuffle = global.shuffle;
-
-/** @type {MarketLayer} */
-let self;
-
+/** @interface {console} */
+let logger;
 /** @type {CSGOtmAPI} */
 let api;
-/** @type {ItemsCache} */
-let _cache;
 
 module.exports = MarketLayer;
-
 require("util").inherits(MarketLayer, EventEmitter);
 
 /**
  * Layer to work with http://market.csgo.com
  *
- * @param {Object} options Information about bot
- * @param {CBot} options.bot
- * @param {ItemsCache} options.cache
- * @param {Number} [options.pingInterval]
- * @param {Number} [options.wsPingInterval]
- * @param {Number} [options.balanceUpdateInterval]
- * @param {HttpsProxyAgent} [options.proxy]
+ * @param {CMarketConfig} config
  * @constructor
  * @extends EventEmitter
  */
-function MarketLayer(options) {
-    self = this;
-    _cache = options.cache;
-
-    if(options.proxy) {
-        logger.log(`Proxy requests to market via: ${options.proxy.proxy.host}:${options.proxy.proxy.port}`);
-    }
-
-    this.isStarted = false;
-
-    this.bot = options.bot;
-
-    this.pingInterval = options.pingInterval || (3 * 60 * 1000 + 5 * 1000); // We need to ping TM every 3 minutes; 5 seconds margin cause TM is silly
-    this.balanceUpdateInterval = options.balanceUpdateInterval || 1.5 * 60 * 1000; // We use websockets, so we don't have to check balance too frequently
+function MarketLayer(config) {
+    this._config = config;
 
     this.api = api = new CSGOtm({
         defaultGotOptions: {
-            agent: options.proxy,
+            agent: config.proxy,
         },
-        apiKey: options.bot.tmKey,
-        htmlAnswerLogPath: path.normalize(global.DATA_DIR + "/../tm_errors"),
+        apiKey: config.apiKey,
+        htmlAnswerLogPath: config.errorLogPath,
     });
-
-    this.knapsack = new MarketKnapsack({
-        market: self,
-    });
-    setKnapsackEvents(this.knapsack);
-
-    this.ws = new MarketSockets({
-        proxy: options.proxy,
-        layer: self,
-    });
-    setWsEvents(this.ws);
 
     /**
      * Requests log of items take. We need it to avoid multiple requests of the same bot
      * @type {{Number: {String: Number}}}
      */
     this.takeRequests = {};
+
+    this.started = false;
 }
 
 MarketLayer.prototype.start = function() {
-    if(self.isStarted) {
+    if(this.started) {
         return;
     }
-    self.isStarted = true;
+    this.started = true;
 
-    setWatcher(() => {
-        self.ping().catch((e) => {
+    FnExtensions.setWatcher(() => {
+        this.ping().catch((e) => {
             logger.error("Major error on market ping-pong", e);
         });
-    }, self.pingInterval);
-    setWatcher(self.requestBalanceUpdate, self.balanceUpdateInterval);
+    }, this._config.pingInterval);
 
-    self.knapsack.start();
-    self.ws.start();
-
-    self._takeNextItems();
+    this._takeNextItems();
 };
 
 MarketLayer.prototype.buyItem = function(mhn, maxPrice, botWallet, partnerId, tradeToken) {
@@ -202,7 +157,7 @@ MarketLayer.prototype.buyItem = function(mhn, maxPrice, botWallet, partnerId, tr
  * @return {Promise<Array<{instanceId: String, classId: String, price: Number, offers: Number}>>}
  */
 MarketLayer.prototype._getVariantsToBuy = function(mhn, maxPrice) {
-    let allowedPrice = self._computeMaxPrice(maxPrice);
+    let allowedPrice = this._config.preparePrice(maxPrice);
 
     //console.log("allowedPrice", allowedPrice, "compromise", compromise, "max", (allowedPrice + compromise));
     function prepareItems(items) {
@@ -250,13 +205,6 @@ MarketLayer.prototype._getVariantsToBuy = function(mhn, maxPrice) {
             throw err;
         }
     });
-};
-
-MarketLayer.prototype._computeMaxPrice = function(meanPrice) {
-    let allowedPrice = meanPrice * (1 + PRICE_ALLOWED_FLUCTUATION);
-    let compromise = Math.max(meanPrice * PRICE_COMPROMISE, MIN_COMPROMISE);
-
-    return allowedPrice + compromise;
 };
 
 MarketLayer.prototype.setTradeToken = function(newToken) {
@@ -338,7 +286,7 @@ MarketLayer.prototype.requestBalanceUpdate = function() {
     }).catch((e) => logger.warn("Error occurred on requestBalanceUpdate: ", e));
 };
 
-MarketLayer.prototype._getWsAuth = function() {
+MarketLayer.prototype.getWsAuth = function() {
     /**
      * @property {Boolean} auth.success
      * @property {String} auth.wsAuth
@@ -352,7 +300,7 @@ MarketLayer.prototype._getWsAuth = function() {
     }).catch((err) => {
         logger.error(err);
 
-        return self._getWsAuth();
+        return self.getWsAuth();
     });
 };
 
@@ -583,53 +531,3 @@ MarketLayer.prototype.checkItemState = function(marketId, operationDate) {
         }
     });
 };
-
-function setWsEvents(ws) {
-    ws.on("balance", (newBalance) => {
-        //console.log("balance", newBalance);
-
-        self.emit("balance", newBalance);
-    });
-    ws.on("connected", () => {
-        /** noop */
-    });
-    ws.on("error", () => {
-        /** noop */
-    });
-
-    ws.on("itemAdd", (data) => {
-        //console.log("itemAdd", data);
-        self.knapsack.add(data);
-    });
-    ws.on("itemTake", (data) => {
-        //console.log("itemTake", data);
-        self.knapsack.update(data);
-    });
-    ws.on("itemRemove", (data) => {
-        //console.log("itemRemove", data);
-        self.knapsack.remove(data);
-    });
-}
-
-/**
- * @param {MarketKnapsack} knapsack
- */
-function setKnapsackEvents(knapsack) {
-    knapsack.on("updated", () => {
-        self.emit("knapsackUpdate", [knapsack.pendingItemsCount, knapsack.takeItemsCount]);
-    });
-}
-
-function setWatcher(fn, interval) {
-    if(isNaN(interval)) {
-        throw new Error("Interval can not be NaN");
-    }
-
-    setInterval(() => fn.apply(self), interval);
-
-    fn.apply(self);
-}
-
-function getRandomElement(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}

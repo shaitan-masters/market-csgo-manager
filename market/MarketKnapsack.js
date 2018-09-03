@@ -55,6 +55,8 @@ MarketKnapsack.prototype.start = function() {
             }
         }, self._checkInterval);
     });
+
+    FnExtensions.setWatcher(this.requestBalanceUpdate, self.balanceUpdateInterval, this);
 };
 
 MarketKnapsack.prototype.add = function(item) {
@@ -154,3 +156,30 @@ MarketKnapsack.prototype.check = function() {
         });
     });
 };
+
+function setWsEvents(ws) {
+    ws.on("balance", (newBalance) => {
+        //console.log("balance", newBalance);
+
+        self.emit("balance", newBalance);
+    });
+    ws.on("connected", () => {
+        /** noop */
+    });
+    ws.on("error", () => {
+        /** noop */
+    });
+
+    ws.on("itemAdd", (data) => {
+        //console.log("itemAdd", data);
+        self.knapsack.add(data);
+    });
+    ws.on("itemTake", (data) => {
+        //console.log("itemTake", data);
+        self.knapsack.update(data);
+    });
+    ws.on("itemRemove", (data) => {
+        //console.log("itemRemove", data);
+        self.knapsack.remove(data);
+    });
+}
