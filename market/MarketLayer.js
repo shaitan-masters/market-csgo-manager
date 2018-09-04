@@ -4,10 +4,13 @@ const STEAM_TRADE_TTL = 70 * 1000;
 
 const EventEmitter = require("events").EventEmitter;
 
-const EMarketMessage = require("./enums/EMarketMessage");
-const EMarketItemStatus = require("./enums/EMarketItemStatus");
-const EMarketEventStage = require("./enums/EMarketEventStage");
-const EMarketEventType = require("./enums/EMarketEventType");
+const EMarketMessage = require("./enums/system/EMarketMessage");
+const EMarketItemStatus = require("./enums/system/EMarketItemStatus");
+const EMarketEventStage = require("./enums/system/EMarketEventStage");
+const EMarketEventType = require("./enums/system/EMarketEventType");
+
+const MiddlewareError = require("./classes/MiddlewareError");
+const EErrorType = require("./enums/EErrorType");
 
 const CSGOtm = require("../modules/CsgoTmApi");
 const FnExtensions = require("../modules/FnExtensions");
@@ -24,10 +27,11 @@ require("util").inherits(MarketLayer, EventEmitter);
  * Layer to work with http://market.csgo.com
  *
  * @param {CMarketConfig} config
+ * @param {console} [_logger]
  * @constructor
  * @extends EventEmitter
  */
-function MarketLayer(config) {
+function MarketLayer(config, _logger = console) {
     this._config = config;
 
     this.api = api = new CSGOtm({
@@ -45,6 +49,8 @@ function MarketLayer(config) {
     this.takeRequests = {};
 
     this.started = false;
+
+    logger = _logger;
 }
 
 MarketLayer.prototype.start = function() {
@@ -63,7 +69,7 @@ MarketLayer.prototype.start = function() {
 };
 
 MarketLayer.prototype.buyItem = function(mhn, maxPrice, botWallet, partnerId, tradeToken) {
-    return self._getVariantsToBuy(mhn, maxPrice).then((list) => {
+    return this._getVariantsToBuy(mhn, maxPrice).then((list) => {
         let badItemPrice = false;
 
         function buyAttempt() {
@@ -139,7 +145,7 @@ MarketLayer.prototype.buyItem = function(mhn, maxPrice, botWallet, partnerId, tr
 
                         throw err;
                     default:
-                        console.log("buy res", response, response === EMarketItemStatus.BotIsBanned, response === EMarketItemStatus.SteamProblems);
+                        logger.debug("Unknown buy res", response);
 
                         return buyAttempt();
                 }
@@ -223,9 +229,10 @@ MarketLayer.prototype.setTradeToken = function(newToken) {
             logger.warn("Error occurred on update token: ", e);
 
             let sleepTime = 1500;
-            if(e.message === "bad_token_inv_closed") {
+            if(e.message === EMarketMessage.BadTokenInvClosed) {
                 sleepTime = 10000;
-                self.emit("badPrivacySettings");
+
+                this.emit("badPrivacySettings");
             }
 
             if(attempts < 3) {
@@ -273,16 +280,12 @@ MarketLayer.prototype.getTradeId = function(uiBid) {
     return self._takeItemsFromBot(uiBid).then((botTrade) => botTrade.trade_id);
 };
 
-MarketLayer.prototype.requestBalanceUpdate = function() {
+MarketLayer.prototype.getBalance = function() {
     /**
      * @property {Number} data.money
      */
-    api.accountGetMoney().then((data) => {
-        if(self.bot.tmWallet !== data.money) {
-            logger.log("Current bot balance: " + data.money / 100);
-        }
-
-        self.emit("balance", data.money);
+    return api.accountGetMoney().then((data) => {
+        return data.money;
     }).catch((e) => logger.warn("Error occurred on requestBalanceUpdate: ", e));
 };
 
@@ -300,7 +303,7 @@ MarketLayer.prototype.getWsAuth = function() {
     }).catch((err) => {
         logger.error(err);
 
-        return self.getWsAuth();
+        return this.getWsAuth();
     });
 };
 
@@ -441,30 +444,8 @@ MarketLayer.prototype._selectBotToTake = function() {
     });
 };
 
-/**
- * @param {TradeOffer} trade
- */
-MarketLayer.prototype.captureTradeEnd = function(trade) {
-    for(let uiBid in self.takeRequests) {
-        if(self.takeRequests[uiBid].tradeId === String(trade.id)) {
-            // we delay this delete, because TM is slooooow
-            setTimeout(() => {
-                delete self.takeRequests[uiBid];
-            }, 5 * 1000);
-        }
-    }
-};
-
-MarketLayer.prototype._clearTakeRequestsLog = function() {
-    for(let uiBid in self.takeRequests) {
-        if(Date.now() - self.takeRequests[uiBid].time > STEAM_TRADE_TTL) {
-            delete self.takeRequests[uiBid];
-        }
-    }
-};
-
-MarketLayer.prototype._takeItemsFromBot = function(uiBid) {
-    return api.sellCreateTradeRequest(uiBid, "out").then((answer) => {
+MarketLayer.prototype.takeItemsFromBot = function(uiBid) {
+    return api.sellCreateTradeRequest(uiBid, CSGOtm.CREATE_TRADE_REQUEST_TYPE.OUT).then((answer) => {
         if(answer.success) {
             /*self.takeRequests[uiBid] = {
                 bid: uiBid,
@@ -473,8 +454,10 @@ MarketLayer.prototype._takeItemsFromBot = function(uiBid) {
             };*/
 
             return {
-                trade_id: answer.trade,
-                secret: answer.secret,
+                trade_id: answer.trade, // steam trade id
+                bot_id: answer.botid, // bot steam id
+                secret: answer.secret, // secret code in trade message
+                time: Date.now(),
             };
         } else {
             throw answer;
@@ -483,13 +466,13 @@ MarketLayer.prototype._takeItemsFromBot = function(uiBid) {
 };
 
 /**
- * @param {Number} marketId
+ * @param {Number} marketId - market item id
  * @param {Date} [operationDate]
  */
 MarketLayer.prototype.checkItemState = function(marketId, operationDate) {
     let start, end;
     if(operationDate) {
-        let range = 15 * 60 * 1000;
+        let range = 10 * 60 * 1000;
 
         start = new Date();
         start.setTime(operationDate.getTime() - range);
@@ -507,27 +490,19 @@ MarketLayer.prototype.checkItemState = function(marketId, operationDate) {
                 return event.h_event === EMarketEventType.BuyGo && Number(event.item) === marketId;
             });
             if(!buyEvent) {
-                let err = new Error("Event for marketItem#" + marketId + " not found");
-                err.type = "notFound";
-
-                throw err;
+                throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
             }
 
             let stage = Number(buyEvent.stage);
-            let itemState = {};
-            if(stage === EMarketEventStage.Ready) {
-                itemState.text = "ready";
-            } else if(stage === EMarketEventStage.Waiting) {
-                itemState.text = "waiting";
-            } else if(stage === EMarketEventStage.Unsuccessful) {
-                itemState.text = "unsuccessful";
+            if(!EMarketEventStage.hasOwnProperty(stage)) {
+                throw MiddlewareError("Unknown item operation stage", EErrorType.UnknownStage);
             }
 
-            return itemState;
+            return stage;
         } else {
-            console.log("history", history);
+            logger.debug("Failed to fetch operation history", history, marketId, operationDate);
 
-            throw new Error("Failed to get history");
+            throw MiddlewareError("Failed to get history", EErrorType.HistoryFailed);
         }
     });
 };

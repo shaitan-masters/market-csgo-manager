@@ -10,13 +10,16 @@ const DEFAULT_LEFT_TIME = -1;
 
 const EventEmitter = require("events").EventEmitter;
 
-const EMarketWsEvent = require("./enums/EMarketWsEvent");
-const EMarketMessage = require("./enums/EMarketMessage");
-const EMarketItemStatus = require("./enums/EMarketItemStatus");
+const EMarketWsEvent = require("./enums/system/EMarketWsEvent");
+const EMarketMessage = require("./enums/system/EMarketMessage");
+const EMarketItemStatus = require("./enums/system/EMarketItemStatus");
 
 const ESocketEvent = require("./enums/ESocketEvent");
 
 const WebSocketClient = require("../modules/WebSocketClient");
+
+/** @interface {console} */
+let logger;
 
 module.exports = MarketSockets;
 require("util").inherits(MarketSockets, EventEmitter);
@@ -24,19 +27,21 @@ require("util").inherits(MarketSockets, EventEmitter);
 /**
  * @param {CSocketsConfig} config
  * @param {MarketLayer} layer - market layer. We need it to obtain auth code
+ * @param {console} [_logger]
  * @constructor
  * @extends {EventEmitter}
  */
-function MarketSockets(config, layer) {
+function MarketSockets(config, layer, _logger = console) {
+    this._config = config;
+
     /** @var {MarketLayer} */
     this._layer = layer;
-
-    this._pingInterval = config.pingInterval;
-    this._proxy = config.proxy;
 
     this._authorized = false;
 
     this.ws = this._createWebSockets();
+
+    logger = _logger;
 }
 
 /**
@@ -44,7 +49,7 @@ function MarketSockets(config, layer) {
  */
 MarketSockets.prototype.start = function() {
     this.ws.open({
-        agent: this._proxy
+        agent: this._config.proxy
     });
 
     this._setPingWatchdog();
@@ -78,7 +83,7 @@ MarketSockets.prototype.isConnected = function() {
  */
 MarketSockets.prototype._createWebSockets = function() {
     let wsClient = new WebSocketClient(WS_URL, {
-        pingInterval: this._pingInterval,
+        pingInterval: this._config.pingInterval,
         minReconnectionDelay: (1 + Math.random()) * 1000,
         maxReconnectionDelay: 7500,
     });
@@ -159,7 +164,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
         return;
     }
     if(msg === EMarketWsEvent.AuthFailed) {
-        console.error("Auth failed. Trying to authorize again");
+        logger.error("Auth failed. Trying to authorize again");
 
         this._authorized = false;
         this._auth();
@@ -171,7 +176,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
     try {
         json = JSON.parse(msg);
     } catch(e) {
-        console.warn("This message doesn't look like a valid JSON: " + msg);
+        logger.warn("This message doesn't look like a valid JSON: " + msg);
 
         return;
     }
@@ -179,7 +184,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
     try {
         data = JSON.parse(json.data);
     } catch(e) {
-        console.warn("This data doesn't look like a valid JSON: " + json.data);
+        logger.warn("This data doesn't look like a valid JSON: " + json.data);
 
         return;
     }
@@ -260,7 +265,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
         } else if(data.text && data.text === EMarketMessage.SupportAnswer) {
             /* noop */
         } else {
-            console.warn("Notification from market administration: ", data);
+            logger.warn("Notification from market administration: ", data);
         }
     } else if(type === EMarketWsEvent.ItemOut) {
         //console.log("ItemOut", data);
@@ -277,7 +282,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
     } else if(type === EMarketWsEvent.AdminMessage || type === EMarketWsEvent.SetDirect) {
         // Just ignore
     } else {
-        console.warn("Unsupported ws message type '" + type + "'", data);
+        logger.warn("Unsupported ws message type '" + type + "'", data);
     }
 };
 

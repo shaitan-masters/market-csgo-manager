@@ -4,6 +4,7 @@ const parseUrl = require("url").parse;
 const fs = require("fs");
 
 const CSGOtm = require("@malsa/node-csgotm-api");
+const CSGOtmAPI = CSGOtm.API;
 
 /**
  * Used as workaround of
