@@ -1,7 +1,5 @@
 "use strict";
 
-const EventEmitter = require("events").EventEmitter;
-
 const EMarketMessage = require("./enums/system/EMarketMessage");
 const EMarketEventStage = require("./enums/system/EMarketEventStage");
 const EMarketEventType = require("./enums/system/EMarketEventType");
@@ -19,15 +17,13 @@ let logger;
 let api;
 
 module.exports = MarketLayer;
-require("util").inherits(MarketLayer, EventEmitter);
 
 /**
- * Layer to work with http://market.csgo.com
+ * High lever layer to work with http://market.csgo.com
  *
  * @param {CMarketConfig} config
  * @param {console} [_logger]
  * @constructor
- * @extends EventEmitter
  */
 function MarketLayer(config, _logger = console) {
     this._config = config;
@@ -60,15 +56,7 @@ MarketLayer.prototype.start = function() {
 
 MarketLayer.prototype.buyItem = function(hashName, goodPrice, partnerId, tradeToken) {
     return this._getItemOffers(hashName, goodPrice).then((list) => {
-        let tradeData = null;
-        if(partnerId && tradeToken) {
-            tradeData = {
-                partnerId: partnerId,
-                tradeToken: tradeToken
-            };
-        }
-
-        return this.buyCheapest(list, tradeData);
+        return this.buyCheapest(list, this.tradeData(partnerId, tradeToken));
     });
 };
 
@@ -138,10 +126,21 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
     return buyAttempt();
 };
 
+MarketLayer.prototype.tradeData = function(partnerId, tradeToken) {
+    if(partnerId && tradeToken) {
+        return {
+            partnerId: partnerId,
+            tradeToken: tradeToken
+        };
+    }
+
+    return null;
+};
+
 /**
  * Returns asset variants to buy the item, sorted by their price
  * @param {String} mhn - Item hash name
- * @param {Number} [maxPrice] - Max item price that we can accept
+ * @param {Number?} [maxPrice] - Max item price that we can accept
  * @return {Promise<Array<{instanceId: String, classId: String, price: Number, offers: Number}>>}
  */
 MarketLayer.prototype._getItemOffers = function(mhn, maxPrice) {
@@ -208,36 +207,39 @@ MarketLayer.prototype._getAccountBalance = function() {
 MarketLayer.prototype.setTradeToken = function(newToken) {
     let attempts = 0;
 
-    function tmSet() {
+    function tokenSetAttempt() {
         attempts++;
 
-        api.accountSetToken(newToken).then((data) => {
-            if(data.success) {
+        return api.accountSetToken(newToken).then((data) => {
+            if(!data.success) {
                 throw new Error(data.error);
             }
 
             logger.log("Trade token updated on TM");
         }).catch((e) => {
             logger.warn("Error occurred on update token: ", e);
+            if(attempts >= 3) {
+                throw e;
+            }
 
             let sleepTime = 1500;
             if(e.message === EMarketMessage.BadTokenInvClosed) {
                 sleepTime = 10000;
-
-                this.emit("badPrivacySettings");
             }
 
-            if(attempts < 3) {
-                setTimeout(tmSet, sleepTime);
-            }
+            return new Promise((res, rej) => {
+                setTimeout(() => {
+                    res(tokenSetAttempt());
+                }, sleepTime);
+            });
         });
     }
 
-    api.accountGetToken().then((data) => {
+    return api.accountGetToken().then((data) => {
         if(data.success && data.token !== newToken) {
-            tmSet();
+            return tokenSetAttempt();
         }
-    }).catch((err) => logger.error(err));
+    });
 };
 
 MarketLayer.prototype.getTrades = function() {
