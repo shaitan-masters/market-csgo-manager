@@ -3,7 +3,6 @@
     "version": "0.0.5",
     "author": "Malsa",
     "description": "High level wrapper for market.csgo.com (AKA tm.csgo.com)",
-    "private": true,
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
