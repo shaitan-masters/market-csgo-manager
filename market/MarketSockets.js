@@ -200,7 +200,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
  * @private
  */
 MarketSockets.prototype._handleMsgByType = function(type, data) {
-    console.log("message", type, data);
+    //console.log("message", type, data);
 
     const extractLeftTime = (data) => Number(data.left || DEFAULT_LEFT_TIME);
 

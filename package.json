@@ -32,7 +32,9 @@
         "https-proxy-agent": "^2.2.1",
         "json5": "^2.0.1",
         "merge": "^1.2.0",
-        "tracer": "^0.9.1"
+        "tracer": "^0.9.1",
+        "chalk": "^2.4.1",
+        "prettyjson": "^1.2.1"
     },
     "engines": {
         "node": ">=8.11.0"
