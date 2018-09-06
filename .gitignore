@@ -59,4 +59,4 @@ typings/
 
 .idea
 
-debug
+debug/config.json
