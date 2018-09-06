@@ -48,7 +48,7 @@ function MarketSockets(config, layer, _logger = console) {
  * Starts WS session
  */
 MarketSockets.prototype.start = function() {
-    this.ws.open({
+    this.ws.connect({
         agent: this._config.proxy
     });
 
@@ -105,7 +105,9 @@ MarketSockets.prototype._createWebSockets = function() {
         this._handleMsg(msg);
     });
     wsClient.on("error", (err) => {
-        this.emit(ESocketEvent.Error, err);
+        logger.error("ws error", err);
+
+        //this.emit(ESocketEvent.Error, err);
     });
     wsClient.on("close", () => {
         this._authorized = false;
@@ -198,7 +200,8 @@ MarketSockets.prototype._handleMsg = function(msg) {
  * @private
  */
 MarketSockets.prototype._handleMsgByType = function(type, data) {
-    //console.log("message", type, data);
+    console.log("message", type, data);
+
     const extractLeftTime = (data) => Number(data.left || DEFAULT_LEFT_TIME);
 
     if(type === EMarketWsEvent.BalanceUpdate) {

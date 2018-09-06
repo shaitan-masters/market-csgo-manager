@@ -61,11 +61,11 @@ WebSocketClient.prototype.connect = function(wsOpts) {
 
     ws.on("open", () => this._handleOpen());
     ws.on("message", (data, flags) => this._handleMessage(data, flags));
-    ws.on("close", (e) => this._handleClose(e));
-    ws.on("error", (e) => this._handleError(e));
+    ws.on("close", (code, reason) => this._handleClose(code, reason));
+    ws.on("error", (err) => this._handleError(err));
 
     this.on("open", () => this.onOpen());
-    this.on("message", (data, flags, number) => this.onMessage(data, flags, number));
+    this.on("message", (data, number) => this.onMessage(data, number));
     this.on("close", (e, reconnecting) => this.onClose(e, reconnecting));
     this.on("error", (e) => this.onError(e));
 
@@ -97,6 +97,8 @@ WebSocketClient.prototype.reconnect = function(e, reason) {
 };
 
 WebSocketClient.prototype.disconnect = function(code, reason) {
+    //console.log("disconnect");
+
     clearTimeout(this._uptimeTimeout);
     clearTimeout(this._connectTimeout);
     clearInterval(this._pingTimer);
@@ -109,8 +111,15 @@ WebSocketClient.prototype.disconnect = function(code, reason) {
 };
 
 WebSocketClient.prototype.send = function(data, options) {
-    this.instance.send(data, options, function(err) {
-        this.emit("error", err);
+    //console.log("ws send", data);
+
+    this.instance.send(data, options, (err) => {
+        if(err) {
+            this.emit("error", err);
+            return;
+        }
+
+        //console.log(data, "sent");
     });
 };
 
@@ -119,6 +128,8 @@ WebSocketClient.prototype.ping = function() {
 };
 
 WebSocketClient.prototype._handleOpen = function() {
+    clearTimeout(this._connectTimeout);
+
     this._connected = true;
     this._reconnecting = false;
 
@@ -131,10 +142,10 @@ WebSocketClient.prototype._handleOpen = function() {
     this.emit("open");
 };
 
-WebSocketClient.prototype._handleMessage = function(data, flags) {
+WebSocketClient.prototype._handleMessage = function(data) {
     this._number++;
 
-    this.emit("message", data, flags, this._number);
+    this.emit("message", data, this._number);
 };
 
 WebSocketClient.prototype._handleError = function(e) {
@@ -148,19 +159,19 @@ WebSocketClient.prototype._handleError = function(e) {
     }
 };
 
-WebSocketClient.prototype._handleClose = function(e) {
+WebSocketClient.prototype._handleClose = function(code, reason) {
     this._connected = false;
 
-    switch(e) {
+    switch(code) {
         case 1000:	// CLOSE_NORMAL
             console.log("WebSocket: closed");
             break;
         default:	// Abnormal closure
-            this.reconnect(e, "close");
+            this.reconnect(code, "close");
             break;
     }
 
-    this.emit("close", e, this._reconnecting);
+    this.emit("close", code, this._reconnecting);
 };
 
 WebSocketClient.prototype._handleUptime = function() {
@@ -168,6 +179,8 @@ WebSocketClient.prototype._handleUptime = function() {
 };
 
 WebSocketClient.prototype._handleTimeout = function() {
+    console.log("ws connect timeout");
+
     this.disconnect(undefined, "timeout");
 };
 
