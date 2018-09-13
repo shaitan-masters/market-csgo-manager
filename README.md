@@ -16,27 +16,28 @@ High level wrapper for market.csgo.com (AKA tm.csgo.com)
 
 ### Default values
 
-```json
+```json5
 {
     "manager": {
-        "balanceValidationInterval": 1.5 * 60 * 1000,
-        "avoidBadBots": true
+        "balanceValidationInterval": 90000, // 1.5 * 60 * 1000 - Balance integrity check if we are connected to ws
+        "avoidBadBots": true, // If we know that some offer is laggy we will firstly try to skip it
+        "safeBuyRequests": true // If market returns http error on by request we will check, did we really bought
     },
     "market": {
         "apiKey": "",
-        "pingInterval": 3 * 60 * 1000 + 5 * 1000,
+        "pingInterval": 185000, // 3 * 60 * 1000 + 5 * 1000
         "errorLogDir": "",
         "allowedPriceFluctuation": 0,
         "compromiseFactor": 0,
         "minCompromise": 0
     },
     "sockets": {
-        "pingInterval": 20 * 1000
+        "pingInterval": 20000 // 20 * 1000
     },
     "knapsack": {
         "instantTake": true,
-        "validationInterval": 60 * 1000, // if we have connection to ws
-        "updateInterval": 20 * 1000 // using if don't have connection to ws
+        "validationInterval": 60000, // 60 * 1000 - if we have connection to ws
+        "updateInterval": 20000 // 20 * 1000 - using if don't have connection to ws
     }
 }
 ```

@@ -1,15 +1,23 @@
 "use strict";
 
 module.exports = MiddlewareError;
+require("util").inherits(MiddlewareError, Error);
 
 /**
  * @param {String} message
  * @param {String} type
  * @param {String|Object?}source
  * @param {Object?} errData
+ * @return {MiddlewareError}
  * @constructor
+ * @extends {Error}
  */
 function MiddlewareError(message, type, source = null, errData = {}) {
+    if(!(this instanceof MiddlewareError)) {
+        return new MiddlewareError(message, type, source, errData);
+    }
+    MiddlewareError.super_.apply(this, [message]);
+
     if(typeof source === "object") {
         errData = source;
         source = null;
@@ -18,12 +26,8 @@ function MiddlewareError(message, type, source = null, errData = {}) {
         errData.source = source;
     }
 
-    let err = new Error(message);
-    err.type = type;
+    this.type = type;
+    this.source = undefined;
 
-    Object.assign(err, errData);
-
-    this.err = err;
-
-    return err;
+    Object.assign(this, errData);
 }
