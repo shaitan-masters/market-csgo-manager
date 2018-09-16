@@ -34,6 +34,10 @@ function MarketLayer(config, _logger = console) {
     this.api = api = new CSGOtm({
         gotOptions: {
             agent: config.proxy,
+            retry: {
+                retries: 3,
+                statusCodes: [408, 413, 429, 500, 502, 503, 504, 520]
+            }
         },
         apiKey: config.apiKey,
         htmlAnswerLogPath: config.errorLogPath,
@@ -152,7 +156,7 @@ MarketLayer.prototype.tradeData = function(partnerId, tradeToken) {
     if(partnerId && tradeToken) {
         return {
             partnerId: partnerId,
-            tradeToken: tradeToken
+            tradeToken: tradeToken,
         };
     }
 
@@ -227,39 +231,15 @@ MarketLayer.prototype._getAccountBalance = function() {
 };
 
 MarketLayer.prototype.setTradeToken = function(newToken) {
-    let attempts = 0;
-
-    function tokenSetAttempt() {
-        attempts++;
-
-        return api.accountSetToken(newToken).then((data) => {
-            if(!data.success) {
-                throw new Error(data.error);
-            }
-
-            logger.log("Trade token updated on TM");
-        }).catch((e) => {
-            logger.warn("Error occurred on update token: ", e);
-            if(attempts >= 3) {
-                throw e;
-            }
-
-            let sleepTime = 1500;
-            if(e.message === EMarketMessage.BadTokenInvClosed) {
-                sleepTime = 10000;
-            }
-
-            return new Promise((res, rej) => {
-                setTimeout(() => {
-                    res(tokenSetAttempt());
-                }, sleepTime);
-            });
-        });
-    }
-
     return api.accountGetToken().then((data) => {
         if(data.success && data.token !== newToken) {
-            return tokenSetAttempt();
+            return api.accountSetToken(newToken, {retry: {retries: 5}}).then(() => {
+                if(!data.success) {
+                    throw new Error(data.error);
+                }
+
+                logger.log("Trade token updated on TM");
+            });
         }
     });
 };
