@@ -27,18 +27,19 @@ module.exports = MarketLayer;
  */
 function MarketLayer(config, _logger = console) {
     this._config = config;
+    logger = _logger;
+
+    this.started = false;
 
     this.api = api = new CSGOtm({
-        defaultGotOptions: {
+        gotOptions: {
             agent: config.proxy,
         },
         apiKey: config.apiKey,
         htmlAnswerLogPath: config.errorLogPath,
     });
 
-    this.started = false;
-
-    logger = _logger;
+    this._wallet = null;
 }
 
 MarketLayer.prototype.start = function() {
@@ -55,7 +56,7 @@ MarketLayer.prototype.start = function() {
 };
 
 MarketLayer.prototype.buyItem = function(hashName, goodPrice, partnerId, tradeToken) {
-    return this._getItemOffers(hashName, goodPrice).then((list) => {
+    return this.getItemOffers(hashName, goodPrice).then((list) => {
         return this.buyCheapest(list, this.tradeData(partnerId, tradeToken));
     });
 };
@@ -63,67 +64,88 @@ MarketLayer.prototype.buyItem = function(hashName, goodPrice, partnerId, tradeTo
 MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
     let badItemPrice = false;
 
-    function buyAttempt() {
+    let buyAttempt = () => {
         if(offers.length === 0) {
             throw MiddlewareError("All buy attempts failed", EErrorType.AttemptsFailed, EErrorSource.Market);
         }
 
         let balance = this._getAccountBalance();
         let instance = offers.shift();
-        let needMoney = instance.price;
 
-        if(balance !== false && needMoney > balance) {
-            throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney});
+        if(balance !== false && instance.price > balance) {
+            throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: instance.price});
         }
 
-        return api.buyCreate(instance, instance.price, tradeData).then((response) => {
-            switch(response.result) {
-                case EMarketMessage.Ok:
-                    return {
-                        uiId: response.id,
-                        classId: instance.classId,
-                        instanceId: instance.instanceId,
-                        price: instance.price,
-                    };
-
-                case EMarketMessage.BadOfferPrice:
-                    // Замечено, что ошибка вознимает, когда маркет считет цену покупки слишком высокой (по сравнению со стимом, наверное)
-                    // Пример 95% этой ошибки: пытаемся купить за 30-50р предмет, который в стиме стоит 3-6р
-                    // В таком случае не имеет смысла постоянно пытаться покупать предмет по все большей цене
-                    if(badItemPrice) {
-                        throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
-                    }
-                    badItemPrice = true;
-
-                    logger.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; buy price: ${instance.price}`);
-                case EMarketMessage.BuyOfferExpired:
-                case EMarketMessage.SomebodyBuying:
-                case EMarketMessage.RequestErrorNoList:
-                case EMarketMessage.SteamOrBotProblems:
-                case EMarketMessage.BotIsBanned:
-                    return buyAttempt();
-
-                case EMarketMessage.NeedToTake:
-                    throw MiddlewareError("Need to withdraw items", EErrorType.NeedToTake, EErrorSource.Owner);
-                case EMarketMessage.NeedMoney:
-                    throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney});
-
-                case EMarketMessage.InvalidTradeLink:
-                    throw MiddlewareError("Your trade link is invalid", EErrorType.InvalidToken, EErrorSource.User);
-                case EMarketMessage.SteamInventoryPrivate:
-                    throw MiddlewareError("Your Steam inventory is closed", EErrorType.InventoryClosed, EErrorSource.User);
-                case EMarketMessage.OfflineTradeProblem:
-                    throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
-
-                default:
-                    logger.debug("Unknown buy res", response);
-
-                    return buyAttempt();
+        return this._tryToBuy(instance, tradeData).then((data) => {
+            if(data === null) {
+                return buyAttempt();
             }
+
+            return data;
+        }).catch((err) => {
+            // Замечено, что ошибка вознимает, когда маркет считет цену покупки слишком высокой (по сравнению со стимом, наверное)
+            // Пример 95% этой ошибки: пытаемся купить за 30-50р предмет, который в стиме стоит 3-6р
+            // В таком случае не имеет смысла постоянно пытаться покупать предмет по все большей цене
+            if(err instanceof MiddlewareError && err.type === EErrorType.BadOfferPrice && !badItemPrice) {
+                badItemPrice = true;
+
+                return buyAttempt();
+            }
+
+            throw err;
         });
-    }
+    };
 
     return buyAttempt();
+};
+
+MarketLayer.prototype._tryToBuy = function(instance, price, tradeData) {
+    let gotOptions = {
+        retry: {
+            retries: 1,
+        },
+    };
+    let iprice = instance.price;
+
+    return api.buyCreate(instance, iprice, tradeData, gotOptions).then((response) => {
+        switch(response.result) {
+            case EMarketMessage.Ok:
+                return {
+                    uiId: response.id,
+                    classId: instance.classId,
+                    instanceId: instance.instanceId,
+                    price: iprice,
+                };
+
+            case EMarketMessage.BadOfferPrice:
+                logger.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; buy price: ${iprice}`);
+                throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
+
+            case EMarketMessage.BuyOfferExpired:
+            case EMarketMessage.SomebodyBuying:
+            case EMarketMessage.RequestErrorNoList:
+            case EMarketMessage.SteamOrBotProblems:
+            case EMarketMessage.BotIsBanned:
+                return null;
+
+            case EMarketMessage.NeedToTake:
+                throw MiddlewareError("Need to withdraw items", EErrorType.NeedToTake, EErrorSource.Owner);
+            case EMarketMessage.NeedMoney:
+                throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: iprice});
+
+            case EMarketMessage.InvalidTradeLink:
+                throw MiddlewareError("Your trade link is invalid", EErrorType.InvalidToken, EErrorSource.User);
+            case EMarketMessage.SteamInventoryPrivate:
+                throw MiddlewareError("Your Steam inventory is closed", EErrorType.InventoryClosed, EErrorSource.User);
+            case EMarketMessage.OfflineTradeProblem:
+                throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
+
+            default:
+                logger.debug("Unknown buy res", response);
+
+                return null;
+        }
+    });
 };
 
 MarketLayer.prototype.tradeData = function(partnerId, tradeToken) {
@@ -143,8 +165,8 @@ MarketLayer.prototype.tradeData = function(partnerId, tradeToken) {
  * @param {Number?} [maxPrice] - Max item price that we can accept
  * @return {Promise<Array<{instanceId: String, classId: String, price: Number, offers: Number}>>}
  */
-MarketLayer.prototype._getItemOffers = function(mhn, maxPrice) {
-    let allowedPrice = maxPrice ? this._config.preparePrice(maxPrice) : Infinity;
+MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
+    let allowedPrice = maxPrice ? this._config.preparePrice(maxPrice) : Number.MAX_VALUE;
 
     function extractOffers(items) {
         return items.map((item) => {
@@ -192,13 +214,13 @@ MarketLayer.prototype._getItemOffers = function(mhn, maxPrice) {
     });
 };
 
-MarketLayer.prototype._setAccountBalance = function(botWallet) {
+MarketLayer.prototype.setAccountBalance = function(botWallet) {
     this._wallet = Number(botWallet); // in cents
 };
 
 MarketLayer.prototype._getAccountBalance = function() {
-    if(typeof this._wallet === "undefined") {
-        return false;
+    if(this._wallet === null) {
+        return Number.MAX_VALUE;
     }
 
     return this._wallet;
@@ -354,19 +376,17 @@ MarketLayer.prototype.takeItemsFromBot = function(uiBid) {
 };
 
 /**
- * @param {Number} marketId - market item id
- * @param {Date} [operationDate] - date, when this item was bought
+ * @param {Date} [operationDate] - date, when this items was bought
+ * @param {Number} [timeMargin] - in milliseconds
  */
-MarketLayer.prototype.getItemState = function(marketId, operationDate) {
+MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 * 1000) {
     let start, end;
     if(operationDate) {
-        let range = 10 * 60 * 1000;
-
         start = new Date();
-        start.setTime(operationDate.getTime() - range);
+        start.setTime(operationDate.getTime() - timeMargin);
 
         end = new Date();
-        end.setTime(operationDate.getTime() + range);
+        end.setTime(operationDate.getTime() + timeMargin);
     } else {
         start = new Date(0);
         end = new Date();
@@ -374,23 +394,41 @@ MarketLayer.prototype.getItemState = function(marketId, operationDate) {
 
     return api.accountGetOperationHistory(start, end).then((history) => {
         if(history.success) {
-            let buyEvent = history.history.find((event) => {
-                return event.h_event === EMarketEventType.BuyGo && Number(event.item) === marketId;
+            let buyEvents = history.history.find((event) => {
+                return event.h_event === EMarketEventType.BuyGo;
             });
-            if(!buyEvent) {
-                throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
+            if(!buyEvents.length) {
+                throw MiddlewareError("Buy events on " + operationDate + " not found", EErrorType.NotFound);
             }
 
-            let stage = Number(buyEvent.stage);
-            if(!EMarketEventStage.hasOwnProperty(stage)) {
-                throw MiddlewareError("Unknown item operation stage", EErrorType.UnknownStage);
-            }
-
-            return stage;
+            return buyEvents;
         } else {
             logger.debug("Failed to fetch operation history", history, marketId, operationDate);
 
             throw MiddlewareError("Failed to get history", EErrorType.HistoryFailed);
         }
+    });
+};
+
+
+/**
+ * @param {Number} marketId - market item id
+ * @param {Date} [operationDate] - date, when this item was bought
+ */
+MarketLayer.prototype.getItemState = function(marketId, operationDate) {
+    return this.getBoughtItems(operationDate, 10 * 60 * 1000).then((history) => {
+        let buyEvent = history.history.find((event) => {
+            return Number(event.item) === marketId;
+        });
+        if(!buyEvent) {
+            throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
+        }
+
+        let stage = Number(buyEvent.stage);
+        if(!EMarketEventStage.hasOwnProperty(stage)) {
+            throw MiddlewareError("Unknown item operation stage", EErrorType.UnknownStage);
+        }
+
+        return stage;
     });
 };
