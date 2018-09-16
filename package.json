@@ -1,6 +1,6 @@
 {
     "name": "market-csgo-manager",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "author": "Malsa",
     "description": "High level wrapper for market.csgo.com (AKA tm.csgo.com)",
     "scripts": {
