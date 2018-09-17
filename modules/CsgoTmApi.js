@@ -11,7 +11,8 @@ const CSGOtmAPI = CSGOtm.API;
  * https://github.com/Xfaider48/node-csgotm-api/pull/4 and
  * https://github.com/Xfaider48/node-csgotm-api/pull/5
  *
- * Currently there is no need in this wrapper, but I will leave it for future bugs
+ * Currently there is no need in this wrapper,
+ * but I will leave it for future bugs and unnecessary functional extensions
  */
 
 module.exports = TMCustomAPI;
@@ -35,6 +36,7 @@ let errorPath;
  *
  * @param {String} [options.htmlAnswerLogPath=null] - path, where HTML answers from API would be saved
  * @param {Boolean} [options.extendedError=true]
+ * @param {Function} [options.registerError]
  */
 function TMCustomAPI(options) {
     options.extendedError = true;
@@ -46,6 +48,10 @@ function TMCustomAPI(options) {
         }
 
         errorPath = options.htmlAnswerLogPath;
+    }
+
+    if(options.registerError) {
+        this._registerError = options.registerError;
     }
 
     TMCustomAPI.super_.apply(this, arguments);
@@ -86,6 +92,12 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
             delete error.response;
             delete error.gotOptions;
         } catch(e) {
+        }
+
+        if(this._registerError) {
+            setTimeout(() => {
+                this._registerError(error);
+            }, 0);
         }
 
         throw error;

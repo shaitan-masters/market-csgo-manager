@@ -27,7 +27,7 @@ module.exports = MarketLayer;
  */
 function MarketLayer(config, _logger = console) {
     this._config = config;
-    logger = _logger;
+    this._logger = logger = _logger;
 
     this.started = false;
 
@@ -94,6 +94,9 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
                 badItemPrice = true;
 
                 return buyAttempt();
+            }
+            if(err.statusCode) {
+                err.instance = instance;
             }
 
             throw err;

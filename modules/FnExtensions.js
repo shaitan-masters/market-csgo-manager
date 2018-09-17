@@ -10,9 +10,11 @@ FnExtensions.setWatcher = function(fn, interval, caller = null) {
         throw new Error("Interval can not be NaN");
     }
 
-    setInterval(() => fn.apply(caller), interval);
+    let intervalId = setInterval(() => fn.apply(caller), interval);
 
     fn.apply(caller);
+
+    return intervalId;
 };
 
 FnExtensions.getRandomElement = function(arr) {

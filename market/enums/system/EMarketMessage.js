@@ -16,7 +16,7 @@ const EMarketMessage = {
     // Вывод предмета
     RequestErrorNoItems: "Ошибка создания заявки: У вас нет вещей для передачи",
     RequestErrorWrongBotId: "Ошибка создания заявки: Неправильный номер бота",
-    RequestUnexpectedError: "Ошибка создания заявки: Exception",
+    RequestUnexpectedError: "Ошибка создания заявки: Exception", // Unexpected error. Normally we don't have to get it at all
 
     // Закупка предмета
     // наши траблы
@@ -28,6 +28,7 @@ const EMarketMessage = {
     // попробуйте снова
     BuyOfferExpired: "К сожалению, предложение устарело. Обновите страницу",
     SomebodyBuying: "Кто-то уже покупает этот предмет. Попробуйте ещё",
+    ServerError7: "Ошибка сервера 7", // Unexpected error. Normally we don't have to get it at all
     // траблы маркета
     SteamOrBotProblems: "Возможны проблемы со стим или ботом, попробуйте позже.",
     BotIsBanned: "Бот забанен, скоро исправим.",

@@ -32,11 +32,11 @@ module.exports = function(emitter, type, displayData = false, except = []) {
             let args = Array.prototype.slice.call(arguments, 1);
 
             if(args.length) {
-                console.error(pretty.render(args, {
+                console.error(pretty.render(args[0], {
                     dashColor: "yellow",
                     stringColor: "gray",
                     numberColor: "cyan",
-                }));
+                }, 2));
             }
         }
 
