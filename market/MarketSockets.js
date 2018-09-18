@@ -32,6 +32,7 @@ require("util").inherits(MarketSockets, EventEmitter);
  * @extends {EventEmitter}
  */
 function MarketSockets(config, layer, _logger = console) {
+    logger = _logger;
     this._config = config;
 
     /** @var {MarketLayer} */
@@ -39,9 +40,8 @@ function MarketSockets(config, layer, _logger = console) {
 
     this._authorized = false;
 
+    /** @var {WebSocketClient} */
     this.ws = this._createWebSockets();
-
-    logger = _logger;
 }
 
 /**
