@@ -4,7 +4,7 @@ High level wrapper for market.csgo.com (AKA tm.csgo.com)
 
 ## Config
 
-### Minimal
+### Minimal required
 
 ```json
 {
@@ -35,7 +35,6 @@ High level wrapper for market.csgo.com (AKA tm.csgo.com)
         "pingInterval": 20000 // 20 * 1000
     },
     "knapsack": {
-        "instantTake": true,
         "validationInterval": 60000, // 60 * 1000 - if we have connection to ws
         "updateInterval": 20000 // 20 * 1000 - using if don't have connection to ws
     }

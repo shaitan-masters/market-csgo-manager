@@ -342,13 +342,6 @@ MarketLayer.prototype.takeItemsFromBot = function(uiBid) {
             throw answer;
         }
 
-        // todo: remove this comment
-        /* self.takeRequests[uiBid] = {
-            bid: uiBid,
-            time: Date.now(),
-            tradeId: String(answer.trade),
-        };*/
-
         return {
             trade_id: answer.trade, // steam trade id
             bot_id: answer.botid, // bot steam id
