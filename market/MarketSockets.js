@@ -169,6 +169,8 @@ MarketSockets.prototype._handleMsg = function(msg) {
         logger.error("Auth failed. Trying to authorize again");
 
         this._authorized = false;
+        this.emit(ESocketEvent.DeAuth);
+
         this._auth();
 
         return;
@@ -201,6 +203,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
  */
 MarketSockets.prototype._handleMsgByType = function(type, data) {
     //console.log("message", type, data);
+    this.emit(ESocketEvent.Message, type, data);
 
     const extractLeftTime = (data) => Number(data.left || DEFAULT_LEFT_TIME);
 
@@ -219,15 +222,16 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             ui_price: Math.round(Number(data.ui_price) * 100), // convert to cents
             update: false,
         };
-        this.emit(ESocketEvent.ItemAdd, prepared);
-
-        if(prepared.ui_status === EMarketItemStatus.Delivered) {
-            let extended = Object.assign({}, prepared, {
+        if(prepared.ui_status === EMarketItemStatus.Delivered || prepared.ui_status === EMarketItemStatus.Pending) {
+            Object.assign(prepared, {
                 ui_bid: Number(data.ui_bid),
                 left: extractLeftTime(data),
             });
+        }
 
-            this.emit(ESocketEvent.ItemTake, extended);
+        this.emit(ESocketEvent.ItemAdd, prepared);
+        if(prepared.ui_status === EMarketItemStatus.Delivered) {
+            this.emit(ESocketEvent.ItemTake, prepared);
         }
 
         return;

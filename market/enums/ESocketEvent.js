@@ -7,6 +7,7 @@
 const ESocketEvent = {
     Connected: "connected",
     Error: "error",
+    Message: "message",
 
     Auth: "authorized",
     DeAuth: "deauthorized",

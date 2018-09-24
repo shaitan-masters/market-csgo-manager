@@ -5,7 +5,7 @@ const pretty = require("prettyjson");
 
 let start = null;
 
-module.exports = function(emitter, type, displayData = false, except = []) {
+module.exports = function(emitter, type, displayData = false, except = [], only = []) {
     let emit = emitter && emitter.emit;
     if(typeof emit !== "function") {
         return;
@@ -15,6 +15,9 @@ module.exports = function(emitter, type, displayData = false, except = []) {
 
     emitter.emit = function(event) {
         if(except.includes(event)) {
+            return;
+        }
+        if(only.length > 0 && !only.includes(event)) {
             return;
         }
 
@@ -32,7 +35,9 @@ module.exports = function(emitter, type, displayData = false, except = []) {
             let args = Array.prototype.slice.call(arguments, 1);
 
             if(args.length) {
-                console.error(pretty.render(args[0], {
+                let data = args.length === 1 ? args[0] : args;
+
+                console.error(pretty.render(data, {
                     dashColor: "yellow",
                     stringColor: "gray",
                     numberColor: "cyan",

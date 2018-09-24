@@ -23,4 +23,5 @@ let config = new MarketManager.CManagerConfig(rawConfig, null);
 let manager = new MarketManager(config, log);
 manager.start();
 
-eventDebug(manager.ws, null, true, ['pong', 'balance']);
+//eventDebug(manager.ws, null, true, ['pong', 'balance']);
+eventDebug(manager.ws, null, true, [], ["message"]);
