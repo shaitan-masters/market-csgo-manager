@@ -35,6 +35,8 @@ function MarketSockets(config, layer, _logger = console) {
     logger = _logger;
     this._config = config;
 
+    this.started = false;
+
     /** @var {MarketLayer} */
     this._layer = layer;
 
@@ -48,6 +50,13 @@ function MarketSockets(config, layer, _logger = console) {
  * Starts WS session
  */
 MarketSockets.prototype.start = function() {
+    if(this.started) {
+        return;
+    }
+    this.started = true;
+
+    logger.trace("Starting sockets");
+
     this.ws.connect({
         agent: this._config.proxy
     });
@@ -220,6 +229,8 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             ui_id: Number(data.ui_id),
             ui_status: Number(data.ui_status),
             ui_price: Math.round(Number(data.ui_price) * 100), // convert to cents
+            i_classid: data.i_classid,
+            i_instanceid: data.i_instanceid || data.ui_real_instance,
             update: false,
         };
         if(prepared.ui_status === EMarketItemStatus.Delivered || prepared.ui_status === EMarketItemStatus.Pending) {
@@ -229,8 +240,12 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             });
         }
 
-        this.emit(ESocketEvent.ItemAdd, prepared);
         if(prepared.ui_status === EMarketItemStatus.Delivered) {
+            return; // Some bug happened?
+        }
+
+        this.emit(ESocketEvent.ItemAdd, prepared);
+        if(prepared.ui_status === EMarketItemStatus.NeedToTake) {
             this.emit(ESocketEvent.ItemTake, prepared);
         }
 

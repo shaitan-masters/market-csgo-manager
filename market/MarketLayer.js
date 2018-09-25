@@ -52,6 +52,8 @@ MarketLayer.prototype.start = function() {
     }
     this.started = true;
 
+    logger.trace("Starting market layer");
+
     FnExtensions.setWatcher(() => {
         this.ping().catch((e) => {
             logger.error("Major error on market ping-pong", e);
