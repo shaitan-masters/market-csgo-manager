@@ -229,9 +229,11 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             ui_id: Number(data.ui_id),
             ui_status: Number(data.ui_status),
             ui_price: Math.round(Number(data.ui_price) * 100), // convert to cents
-            i_classid: data.i_classid,
-            i_instanceid: data.i_instanceid || data.ui_real_instance,
+            i_classid: Number(data.i_classid),
+            i_instanceid: Number(data.i_instanceid) || Number(data.ui_real_instance) || 0,
+            send_until: Number(data.send_until),
             update: false,
+            //raw: data,
         };
         if(prepared.ui_status === EMarketItemStatus.Delivered || prepared.ui_status === EMarketItemStatus.Pending) {
             Object.assign(prepared, {
@@ -258,6 +260,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
             ui_id: Number(data.id),
             ui_status: Number(data.status),
             update: true,
+            //raw: data,
         };
 
         let event;
