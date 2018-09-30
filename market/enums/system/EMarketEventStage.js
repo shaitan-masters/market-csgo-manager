@@ -11,6 +11,12 @@ const EMarketEventStage = {
     Unknown3: 3,
     Unknown4: 4,
     Unsuccessful: 5, // Покупка (не удалась)
+
+    has: function(stage) {
+        stage = Number(stage);
+
+        return stage <= 5 && stage >= 1;
+    },
 };
 Object.freeze(EMarketEventStage);
 
