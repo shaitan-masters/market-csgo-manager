@@ -49,7 +49,7 @@ function MarketSockets(config, layer, _logger = console) {
 /**
  * Starts WS session
  */
-MarketSockets.prototype.start = function() {
+MarketSockets.prototype.start = async function() {
     if(this.started) {
         return;
     }
@@ -57,8 +57,22 @@ MarketSockets.prototype.start = function() {
 
     logger.trace("Starting sockets");
 
-    this.ws.connect({
-        agent: this._config.proxy
+    await new Promise((res, rej) => {
+        let ready = false;
+
+        this.once(ESocketEvent.Auth, () => {
+            ready = true;
+            res(ready);
+        });
+
+        this.ws.connect({
+            agent: this._config.proxy
+        });
+
+        // We give it 5 seconds to connect
+        setTimeout(() => {
+            !ready && res(ready);
+        }, 5 * 1000);
     });
 
     this._setPingWatchdog();

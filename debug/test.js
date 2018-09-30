@@ -21,7 +21,10 @@ let rawConfig = json5.parse(fs.readFileSync("debug/config.json"));
 let config = new MarketManager.CManagerConfig(rawConfig, null);
 
 let manager = new MarketManager(config, log);
-manager.start();
 
-eventDebug(manager.ws, null, true, ['pong', 'message']);
+(async() => {
+    await manager.start();
+})();
+
+eventDebug(manager.ws, null, true, ["pong", "message"]);
 //eventDebug(manager.ws, null, true, [], ["message"]);
