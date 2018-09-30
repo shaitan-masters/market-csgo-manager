@@ -358,6 +358,16 @@ MarketLayer.prototype.takeItemsFromBot = function(uiBid) {
  * @param {Number} [timeMargin] - in milliseconds
  */
 MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 * 1000) {
+    // We have to align date if it is not passed in UTC+3
+    if(this._config.handleTimezone) {
+        let REQUIRED_TIMEZONE = -180; // Europe/Moscow
+        let currentTimezone = new Date().getTimezoneOffset();
+
+        let offset = -(REQUIRED_TIMEZONE - currentTimezone);
+
+        operationDate.setTime(operationDate.getTime() + offset * 60 * 1000);
+    }
+
     let start, end;
     if(operationDate) {
         start = new Date();

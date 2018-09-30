@@ -27,6 +27,7 @@ High level wrapper for market.csgo.com (AKA tm.csgo.com)
         "apiKey": "",
         "pingInterval": 185000, // 3 * 60 * 1000 + 5 * 1000
         "errorLogDir": "",
+        "handleTimezone": true,
         "allowedPriceFluctuation": 0,
         "compromiseFactor": 0,
         "minCompromise": 0
