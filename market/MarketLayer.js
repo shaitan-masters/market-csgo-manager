@@ -372,7 +372,7 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
 
     return api.accountGetOperationHistory(start, end).then((history) => {
         if(history.success) {
-            let buyEvents = history.history.find((event) => {
+            let buyEvents = history.history.filter((event) => {
                 return event.h_event === EMarketEventType.BuyGo;
             });
             if(!buyEvents.length) {
