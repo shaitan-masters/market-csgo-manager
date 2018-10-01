@@ -398,7 +398,6 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
     });
 };
 
-
 /**
  * @param {Number} marketId - market item id
  * @param {Date} [operationDate] - date, when this item was bought
@@ -411,7 +410,7 @@ MarketLayer.prototype.getItemState = function(marketId, operationDate) {
         }
 
         let stage = Number(buyEvent.stage);
-        if(!EMarketEventStage.hasOwnProperty(stage)) {
+        if(!EMarketEventStage.has(stage)) {
             throw MiddlewareError("Unknown item operation stage", EErrorType.UnknownStage);
         }
 
