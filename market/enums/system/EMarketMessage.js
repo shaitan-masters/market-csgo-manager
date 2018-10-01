@@ -41,6 +41,18 @@ const EMarketMessage = {
     // WS events
     ItemReadyToTake: "Купленный предмет готов к получению, заберите его на странице \"Мои вещи\"",
     SupportAnswer: "Получен новый ответ от техподдержки",
+
+    hash: function(message) {
+        for(let name in EMarketMessage) {
+            if(EMarketMessage.hasOwnProperty(name)) {
+                if(EMarketMessage[name] === message) {
+                    return name;
+                }
+            }
+        }
+
+        return null;
+    },
 };
 Object.freeze(EMarketMessage);
 

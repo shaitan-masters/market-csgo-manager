@@ -117,7 +117,9 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
     let iprice = instance.price;
 
     return api.buyCreate(instance, iprice, tradeData, gotOptions).then((response) => {
-        switch(response.result) {
+        let message = response.result;
+
+        switch(message) {
             case EMarketMessage.Ok:
                 return {
                     uiId: response.id,
@@ -135,6 +137,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             case EMarketMessage.RequestErrorNoList:
             case EMarketMessage.SteamOrBotProblems:
             case EMarketMessage.BotIsBanned:
+                logger.trace(EMarketMessage.hash(message));
                 return null;
 
             case EMarketMessage.NeedToTake:
