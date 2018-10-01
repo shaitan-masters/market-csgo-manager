@@ -1,5 +1,9 @@
 "use strict";
 
+process.on("unhandledRejection", (ur) => {
+    throw ur;
+});
+
 const fs = require("fs");
 const json5 = require("json5");
 
@@ -26,5 +30,6 @@ let manager = new MarketManager(config, log);
     await manager.start();
 })();
 
+eventDebug(manager.layer.api.events, "CsgoTmApi", true);
 eventDebug(manager.ws, null, true, ["pong", "message"]);
 //eventDebug(manager.ws, null, true, [], ["message"]);

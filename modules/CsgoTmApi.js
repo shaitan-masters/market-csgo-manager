@@ -22,7 +22,6 @@ module.exports.CSGOtmAPIError = CSGOtm.CSGOtmAPIError;
 
 // Inheritance
 util.inherits(TMCustomAPI, CSGOtm.API);
-util.inherits(TMCustomAPI, EventEmitter);
 
 // Inherits static methods/properties
 let skipList = ["length", "name", "prototype"];
@@ -33,6 +32,7 @@ Object.getOwnPropertyNames(CSGOtm.API).forEach((prop) => {
 });
 
 let errorPath;
+let events = new EventEmitter();
 
 /**
  * @extends {CSGOtmAPI}
@@ -58,6 +58,8 @@ function TMCustomAPI(options) {
         this._registerError = options.registerError;
     }
 
+    this.events = events;
+
     TMCustomAPI.super_.apply(this, arguments);
 }
 
@@ -70,7 +72,7 @@ function TMCustomAPI(options) {
  * @returns {Promise}
  */
 CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
-    this.emit("_apiCall", url);
+    events.emit("_apiCall", url);
 
     return TMCustomAPI.requestJSON(url, gotOptions).catch(error => {
         let response = error.response || error.nested.response || null;
