@@ -108,7 +108,7 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
     return buyAttempt();
 };
 
-MarketLayer.prototype._tryToBuy = function(instance, price, tradeData) {
+MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
     let gotOptions = {
         retry: {
             retries: 1,

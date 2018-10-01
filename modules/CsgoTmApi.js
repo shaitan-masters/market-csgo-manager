@@ -1,7 +1,9 @@
 "use strict";
 
 const parseUrl = require("url").parse;
+const util = require("util");
 const fs = require("fs");
+const EventEmitter = require("events").EventEmitter;
 
 const CSGOtm = require("@malsa/node-csgotm-api");
 const CSGOtmAPI = CSGOtm.API;
@@ -19,7 +21,9 @@ module.exports = TMCustomAPI;
 module.exports.CSGOtmAPIError = CSGOtm.CSGOtmAPIError;
 
 // Inheritance
-require("util").inherits(TMCustomAPI, CSGOtm.API);
+util.inherits(TMCustomAPI, CSGOtm.API);
+util.inherits(TMCustomAPI, EventEmitter);
+
 // Inherits static methods/properties
 let skipList = ["length", "name", "prototype"];
 Object.getOwnPropertyNames(CSGOtm.API).forEach((prop) => {
@@ -66,6 +70,8 @@ function TMCustomAPI(options) {
  * @returns {Promise}
  */
 CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
+    this.emit("_apiCall", url);
+
     return TMCustomAPI.requestJSON(url, gotOptions).catch(error => {
         let response = error.response || error.nested.response || null;
 
