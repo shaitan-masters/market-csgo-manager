@@ -405,7 +405,7 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
  */
 MarketLayer.prototype.getItemState = function(marketId, operationDate) {
     return this.getBoughtItems(operationDate, 10 * 60 * 1000).then((history) => {
-        let buyEvent = history.history.find((event) => Number(event.item) === marketId);
+        let buyEvent = history.find((event) => Number(event.item) === marketId);
         if(!buyEvent) {
             throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
         }
