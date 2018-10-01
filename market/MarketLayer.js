@@ -361,7 +361,7 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
     // We have to align date if it is not passed in UTC+3
     if(this._config.handleTimezone) {
         let REQUIRED_TIMEZONE = -180; // Europe/Moscow
-        let currentTimezone = new Date().getTimezoneOffset();
+        let currentTimezone = operationDate.getTimezoneOffset();
 
         let offset = -(REQUIRED_TIMEZONE - currentTimezone);
 
