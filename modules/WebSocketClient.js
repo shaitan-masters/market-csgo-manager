@@ -45,7 +45,12 @@ WebSocketClient.prototype.isConnected = function() {
  * @param {Object} [wsOpts] - additional options for ws instance
  */
 WebSocketClient.prototype.connect = function(wsOpts) {
-    this._wsOpts = wsOpts;
+    if(typeof wsOpts !== "undefined") {
+        this._wsOpts = wsOpts;
+    }
+    if(typeof this._wsOpts === "undefined") {
+        this._wsOpts = {};
+    }
 
     if(this._attempts >= this._opts.maxRetries) {
         console.log("Max retries reached", this._attempts, ">=", this._opts.maxRetries);
@@ -54,7 +59,7 @@ WebSocketClient.prototype.connect = function(wsOpts) {
     this._attempts++;
 
     // Connecting
-    let ws = new WebSocket(this.url, [], wsOpts);
+    let ws = new WebSocket(this.url, [], this._wsOpts);
     if(this._opts.connectionTimeout) {
         this._connectTimeout = setTimeout(() => this._handleTimeout(), this._opts.connectionTimeout);
     }
@@ -87,10 +92,14 @@ WebSocketClient.prototype.reconnect = function(e, reason) {
     console.log(`WebSocketClient: connection closed by ${reason}, code: ${e}`);
     //console.log(`WebSocketClient: retry in ${this.autoReconnectInterval}ms`, e);
 
+    if(this._connected) {
+        this.disconnect(undefined, "reconnect");
+    }
+
     setTimeout(() => {
         console.log("WebSocketClient: reconnecting...");
 
-        this.open(this._wsOpts);
+        this.connect();
 
         this.emit("reconnect", e, reason);
     }, this._getCurrentDelay());
