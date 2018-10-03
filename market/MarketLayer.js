@@ -226,6 +226,9 @@ MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
     });
 };
 
+/**
+ * @param {Number} botWallet
+ */
 MarketLayer.prototype.setAccountBalance = function(botWallet) {
     this._wallet = Number(botWallet); // in cents
 };
