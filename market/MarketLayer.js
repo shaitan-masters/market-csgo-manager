@@ -27,7 +27,7 @@ module.exports = MarketLayer;
  */
 function MarketLayer(config, _logger = console) {
     this._config = config;
-    this._logger = logger = _logger;
+    logger = _logger;
 
     this.started = false;
 

@@ -31,6 +31,7 @@ Object.getOwnPropertyNames(CSGOtm.API).forEach((prop) => {
     }
 });
 
+let __extendedError;
 let errorPath;
 let events = new EventEmitter();
 
@@ -38,12 +39,13 @@ let events = new EventEmitter();
  * @extends {CSGOtmAPI}
  * @inheritDoc {CSGOtmAPI}
  *
- * @param {String} [options.htmlAnswerLogPath=null] - path, where HTML answers from API would be saved
- * @param {Boolean} [options.extendedError=true]
- * @param {Function} [options.registerError]
+ * @param {Object} options
+ * @property {String} [options.htmlAnswerLogPath=null] - path, where HTML answers from API would be saved
+ * @property {Function} [options.registerError] - function that would be called for each error answer
  */
 function TMCustomAPI(options) {
-    options.extendedError = true;
+    __extendedError = options.extendedError;
+    options.extendedError = true; // we need it for HTML error logging
 
     // Adds trailing slash
     if(options.htmlAnswerLogPath) {
@@ -52,6 +54,9 @@ function TMCustomAPI(options) {
         }
 
         errorPath = options.htmlAnswerLogPath;
+        if(!fs.existsSync(errorPath)) {
+            fs.mkdirSync(errorPath);
+        }
     }
 
     if(options.registerError) {
@@ -95,11 +100,13 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
             }
         }
 
-        // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
-        try {
-            delete error.response;
-            delete error.gotOptions;
-        } catch(e) {
+        if(!__extendedError) {
+            // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
+            try {
+                delete error.response;
+                delete error.gotOptions;
+            } catch(e) {
+            }
         }
 
         if(this._registerError) {

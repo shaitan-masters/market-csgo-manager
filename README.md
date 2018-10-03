@@ -21,12 +21,12 @@ High level wrapper for market.csgo.com (AKA tm.csgo.com)
     "manager": {
         "balanceValidationInterval": 90000, // 1.5 * 60 * 1000 - Balance integrity check if we are connected to ws
         "avoidBadBots": true, // If we know that some offer is laggy we will firstly try to skip it
-        "safeBuyRequests": true // If market returns http error on by request we will check, did we really bought
+        "safeBuyRequests": true, // If market returns http error on by request we will check, did we really bought
+        "dataDir": null // Where system data should be stored, should be absolute path or nothing
     },
     "market": {
-        "apiKey": "",
+        "apiKey": "", // Required
         "pingInterval": 185000, // 3 * 60 * 1000 + 5 * 1000
-        "errorLogDir": "",
         "handleTimezone": false,
         "allowedPriceFluctuation": 0,
         "compromiseFactor": 0,
