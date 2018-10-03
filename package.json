@@ -1,6 +1,6 @@
 {
     "name": "market-csgo-manager",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "author": "Malsa",
     "description": "High level wrapper for market.csgo.com (AKA tm.csgo.com)",
     "scripts": {
@@ -24,15 +24,13 @@
     "license": "GNU",
     "dependencies": {
         "@malsa/node-csgotm-api": "^1.4.0",
-        "debug": "^4.0.1",
-        "random-js": "^1.0.8",
-        "ws": "^6.0.0"
+        "ws": "^6.0.0",
+        "tracer": "^0.9.1"
     },
     "devDependencies": {
         "https-proxy-agent": "^2.2.1",
         "json5": "^2.0.1",
         "merge": "^1.2.0",
-        "tracer": "^0.9.1",
         "chalk": "^2.4.1",
         "prettyjson": "^1.2.1"
     },
