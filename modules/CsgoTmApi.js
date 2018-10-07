@@ -76,7 +76,9 @@ function TMCustomAPI(options) {
  */
 CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
     requestID++;
-    events.emit("_apiCall", url, requestID);
+    let postData = gotOptions.form ? gotOptions.body : null;
+
+    events.emit("_apiCall", url, requestID, postData);
 
     return TMCustomAPI.requestJSON(url, gotOptions).then((data) => {
         events.emit("_apiResponse", data, requestID);
