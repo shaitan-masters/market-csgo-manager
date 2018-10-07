@@ -33,7 +33,7 @@ Object.getOwnPropertyNames(CSGOtm.API).forEach((prop) => {
 
 let __extendedError;
 let errorPath;
-let requestID = -1;
+let requestID = 0;
 
 let events = new EventEmitter();
 
@@ -75,13 +75,13 @@ function TMCustomAPI(options) {
  * @returns {Promise}
  */
 CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
-    requestID++;
+    let currentID = requestID++;
     let postData = gotOptions.form ? gotOptions.body : null;
 
-    events.emit("_apiCall", url, requestID, postData);
+    events.emit("_apiCall", url, currentID, postData);
 
     return TMCustomAPI.requestJSON(url, gotOptions).then((data) => {
-        events.emit("_apiResponse", data, requestID);
+        events.emit("_apiResponse", data, currentID);
 
         return data;
     }).catch(error => {
@@ -114,7 +114,7 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
             }
         }
 
-        events.emit("_error", error, requestID);
+        events.emit("_error", error, currentID);
 
         throw error;
     });
