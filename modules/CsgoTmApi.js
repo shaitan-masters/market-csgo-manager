@@ -33,6 +33,8 @@ Object.getOwnPropertyNames(CSGOtm.API).forEach((prop) => {
 
 let __extendedError;
 let errorPath;
+let requestID = -1;
+
 let events = new EventEmitter();
 
 /**
@@ -41,7 +43,6 @@ let events = new EventEmitter();
  *
  * @param {Object} options
  * @property {String} [options.htmlAnswerLogPath=null] - path, where HTML answers from API would be saved
- * @property {Function} [options.registerError] - function that would be called for each error answer
  */
 function TMCustomAPI(options) {
     __extendedError = options.extendedError;
@@ -59,17 +60,14 @@ function TMCustomAPI(options) {
         }
     }
 
-    if(options.registerError) {
-        this._registerError = options.registerError;
-    }
-
     this.events = events;
 
     TMCustomAPI.super_.apply(this, arguments);
 }
 
 /**
- * JSON request. Here we add html error capturing
+ * JSON request execution.
+ * Here we add html error capturing event capturing.
  *
  * @param {String} url
  * @param {Object} [gotOptions] Options for 'got' module
@@ -77,24 +75,29 @@ function TMCustomAPI(options) {
  * @returns {Promise}
  */
 CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
-    events.emit("_apiCall", url);
+    requestID++;
+    events.emit("_apiCall", url, requestID);
 
-    return TMCustomAPI.requestJSON(url, gotOptions).catch(error => {
+    return TMCustomAPI.requestJSON(url, gotOptions).then((data) => {
+        events.emit("_apiResponse", data, requestID);
+
+        return data;
+    }).catch(error => {
         let response = error.response || error.nested.response || null;
 
         if(!(error instanceof CSGOtm.CSGOtmAPIError) && typeof response.body === "string" && errorPath) {
             try {
                 JSON.parse(response.body);
             } catch(e) {
-                let parsedUrl = parseUrl(url);
+                // This is HTML page
 
-                let urlPath = parsedUrl.pathname.replace(/^\/|\/$/g, "").replace(/[\s]/, "_").replace(/\//g, "_");
+                let urlPath = parseUrl(url).pathname.replace(/^\/|\/$/g, "").replace(/[\s\/]/g, "_");
                 let dateString = new Date().toISOString();
-                let fileName = `${urlPath}_${dateString}.html`;
 
+                let fileName = `${urlPath}_${dateString}.html`;
                 fs.writeFile(errorPath + fileName, response.body, (err) => {
                     if(err) {
-                        console.log("Failed to save html answer from tm", err);
+                        console.log("Failed to save html answer from TM", err);
                     }
                 });
             }
@@ -109,11 +112,7 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
             }
         }
 
-        if(this._registerError) {
-            setTimeout(() => {
-                this._registerError(error);
-            }, 0);
-        }
+        events.emit("_error", error, requestID);
 
         throw error;
     });
