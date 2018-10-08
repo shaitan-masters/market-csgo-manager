@@ -30,6 +30,7 @@ function MarketLayer(config, _logger = console) {
     logger = _logger;
 
     this.started = false;
+    this.pingEnabled = true;
 
     this.api = api = new CSGOtm({
         gotOptions: {
@@ -55,9 +56,9 @@ MarketLayer.prototype.start = function() {
     logger.trace("Starting market layer");
 
     FnExtensions.setWatcher(() => {
-        this.ping().catch((e) => {
-            logger.error("Major error on market ping-pong", e);
-        });
+        if(this.pingEnabled) {
+            this.ping().catch((e) => logger.error("Major error on market ping-pong", e));
+        }
     }, this._config.pingInterval);
 };
 
