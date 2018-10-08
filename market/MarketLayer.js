@@ -409,18 +409,27 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
  * @param {Number} marketId - market item id
  * @param {Date} [operationDate] - date, when this item was bought
  */
-MarketLayer.prototype.getItemState = function(marketId, operationDate) {
-    return this.getBoughtItems(operationDate, 10 * 60 * 1000).then((history) => {
-        let buyEvent = history.find((event) => Number(event.item) === marketId);
-        if(!buyEvent) {
-            throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
-        }
+MarketLayer.prototype.getItemState = async function(marketId, operationDate) {
+    let initialMargin = 45 * 1000;
+    let extendedMargin = 5 * 60 * 1000;
+    let extractItem = (history) => history.find((event) => Number(event.item) === marketId);
 
-        let stage = Number(buyEvent.stage);
-        if(!EMarketEventStage.has(stage)) {
-            throw MiddlewareError("Unknown item operation stage", EErrorType.UnknownStage);
-        }
+    let history = await this.getBoughtItems(operationDate, initialMargin);
+    let buyEvent = extractItem(history);
 
-        return stage;
-    });
+    if(!buyEvent) {
+        // Try to extend time margin
+        history = await this.getBoughtItems(operationDate, extendedMargin);
+        buyEvent = extractItem(history);
+    }
+    if(!buyEvent) {
+        throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
+    }
+
+    let stage = Number(buyEvent.stage);
+    if(!EMarketEventStage.has(stage)) {
+        throw MiddlewareError("Unknown item operation stage", EErrorType.UnknownStage);
+    }
+
+    return stage;
 };
