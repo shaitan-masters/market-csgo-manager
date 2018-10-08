@@ -84,12 +84,19 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
         events.emit("_apiResponse", data, currentID);
 
         return data;
-    }).catch(error => {
-        let response = error.response || error.nested.response || null;
+    }).catch((error) => {
+        let isApiError = error instanceof CSGOtm.CSGOtmAPIError;
 
-        if(!(error instanceof CSGOtm.CSGOtmAPIError) && typeof response.body === "string" && errorPath) {
+        let response = error.response || error.nested.response || null;
+        let body = response.body || null;
+
+        if(isApiError) {
+            events.emit("_apiResponse", body, currentID);
+        }
+
+        if(!isApiError && typeof body === "string" && errorPath) {
             try {
-                JSON.parse(response.body);
+                JSON.parse(body);
             } catch(e) {
                 // This is HTML page
 
@@ -97,7 +104,7 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
                 let dateString = new Date().toISOString();
 
                 let fileName = `${urlPath}_${dateString}.html`;
-                fs.writeFile(errorPath + fileName, response.body, (err) => {
+                fs.writeFile(errorPath + fileName, body, (err) => {
                     if(err) {
                         console.log("Failed to save html answer from TM", err);
                     }
@@ -114,7 +121,7 @@ CSGOtm.API.requestJSON = function(url, gotOptions = {}) {
             }
         }
 
-        events.emit("_error", error, currentID);
+        events.emit("_error", error, currentID, isApiError);
 
         throw error;
     });
