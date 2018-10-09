@@ -2,6 +2,24 @@
 
 module.exports = MiddlewareError;
 
+function errorExtend(message) {
+    // Make this an instanceof Error.
+    Object.setPrototypeOf(this.constructor.prototype, Error.prototype);
+
+    // Creates the this.stack getter
+    if(Error.captureStackTrace) {
+        Error.captureStackTrace(this, this.constructor);
+    } else {
+        this.stack = (new Error()).stack;
+    }
+
+    // Fixes naming
+    this.name = this.constructor.name;
+
+    // Fixes message
+    this.message = message;
+}
+
 /**
  * @param {String} message
  * @param {String} type
@@ -15,10 +33,7 @@ function MiddlewareError(message, type, source = null, errData = {}) {
     if(!(this instanceof MiddlewareError)) {
         return new MiddlewareError(message, type, source, errData);
     }
-
-    this.name = "MiddlewareError";
-    this.message = message;
-    this.stack = (new Error()).stack;
+    errorExtend.call(this, message);
 
     if(typeof source === "object") {
         errData = source;
@@ -33,5 +48,3 @@ function MiddlewareError(message, type, source = null, errData = {}) {
 
     Object.assign(this, errData);
 }
-
-MiddlewareError.prototype = new Error;
