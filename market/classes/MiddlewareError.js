@@ -48,3 +48,17 @@ function MiddlewareError(message, type, source = null, errData = {}) {
 
     Object.assign(this, errData);
 }
+
+MiddlewareError.prototype.shortInfo = function(includeMessage = false) {
+    let excluded = ["name"];
+    if(!includeMessage) {
+        excluded.push("message");
+    }
+
+    let data = {};
+    Object.entries(this)
+          .filter((ent) => !excluded.includes(ent[0]))
+          .forEach((ent) => data[ent[0]] = ent[1]);
+
+    return data;
+};
