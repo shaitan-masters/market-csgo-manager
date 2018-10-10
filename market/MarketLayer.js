@@ -412,16 +412,23 @@ MarketLayer.prototype.getItemState = async function(marketId, operationDate) {
     let extendedMargin = 5 * 60 * 1000;
     let extractItem = (history) => history.find((event) => Number(event.item) === marketId);
 
-    let history = await this.getBoughtItems(operationDate, initialMargin);
-    let buyEvent = extractItem(history);
+    let getItem = async(margin) => {
+        let history = await this.getBoughtItems(operationDate, margin);
+        let buyEvent = extractItem(history);
+        if(!buyEvent) {
+            throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
+        }
 
-    if(!buyEvent) {
-        // Try to extend time margin
-        history = await this.getBoughtItems(operationDate, extendedMargin);
-        buyEvent = extractItem(history);
-    }
-    if(!buyEvent) {
-        throw MiddlewareError("Event for marketItem#" + marketId + " not found", EErrorType.NotFound);
+        return buyEvent;
+    };
+
+    let buyEvent;
+    try {
+        buyEvent = await getItem(initialMargin);
+    } catch(e) {
+        if(e.type === EErrorType.NotFound) {
+            buyEvent = await getItem(extendedMargin);
+        }
     }
 
     let stage = Number(buyEvent.stage);
