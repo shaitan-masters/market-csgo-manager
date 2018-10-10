@@ -42,14 +42,13 @@ class MarketCustomApi extends MarketApi {
         this.__extendedError = __extendedError;
     }
 
-    requestJSON(url, gotOptions = null) {
+    requestJsonHook(url, gotOptions = null) {
         let currentID = this._requestId++;
         let postData = gotOptions && gotOptions.form ? gotOptions.body : null;
 
         this.events.emit("_apiCall", url, currentID, postData);
 
-        let superSelf = super.constructor;
-        return superSelf.requestJSON(url, gotOptions).then((data) => {
+        return super.requestJsonHook(url, gotOptions).then((data) => {
             this.events.emit("_apiResponse", data, currentID);
 
             return data;
