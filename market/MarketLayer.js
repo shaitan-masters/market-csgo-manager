@@ -8,13 +8,11 @@ const EErrorType = require("./enums/EErrorType");
 const EErrorSource = require("./enums/EErrorSource");
 const MiddlewareError = require("./classes/MiddlewareError");
 
-const CSGOtm = require("../modules/CsgoTmApi");
+const MarketApi = require("../modules/MarketApi");
 const FnExtensions = require("../modules/FnExtensions");
 
 /** @interface {console} */
 let logger;
-/** @type {CSGOtmAPI} */
-let api;
 
 module.exports = MarketLayer;
 
@@ -32,7 +30,7 @@ function MarketLayer(config, _logger = console) {
     this.started = false;
     this.pingEnabled = true;
 
-    this.api = api = new CSGOtm({
+    this.api = new MarketApi({
         gotOptions: {
             agent: config.proxy,
             retry: {
@@ -117,7 +115,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
     };
     let iprice = instance.price;
 
-    return api.buyCreate(instance, iprice, tradeData, gotOptions).then((response) => {
+    return this.api.buyCreate(instance, iprice, tradeData, gotOptions).then((response) => {
         let message = response.result;
 
         switch(message) {
@@ -183,7 +181,7 @@ MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
 
     function extractOffers(items) {
         return items.map((item) => {
-            let ids = CSGOtm.getItemIds(item);
+            let ids = MarketApi.getItemIds(item);
 
             return {
                 hashName: mhn,
@@ -205,7 +203,7 @@ MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
         });
     }
 
-    return api.searchItemByName(mhn).then((itemVariants) => {
+    return this.api.searchItemByName(mhn).then((itemVariants) => {
         if(!itemVariants.success) {
             throw MiddlewareError("Can't get item variants on TM", EErrorType.RequestFailed, EErrorSource.Market);
         }
@@ -243,9 +241,9 @@ MarketLayer.prototype._getAccountBalance = function() {
 };
 
 MarketLayer.prototype.setTradeToken = function(newToken) {
-    return api.accountGetToken().then((data) => {
+    return this.api.accountGetToken().then((data) => {
         if(data.success && data.token !== newToken) {
-            return api.accountSetToken(newToken, {retry: {retries: 5}}).then(() => {
+            return this.api.accountSetToken(newToken, {retry: {retries: 5}}).then(() => {
                 if(!data.success) {
                     throw new Error(data.error);
                 }
@@ -257,9 +255,9 @@ MarketLayer.prototype.setTradeToken = function(newToken) {
 };
 
 MarketLayer.prototype.getTrades = function() {
-    return api.accountGetTrades().then((trades) => {
+    return this.api.accountGetTrades().then((trades) => {
         return trades.map((item) => {
-            let ids = CSGOtm.getItemIds(item);
+            let ids = MarketApi.getItemIds(item);
 
             return {
                 ui_id: Number(item.ui_id),
@@ -268,7 +266,7 @@ MarketLayer.prototype.getTrades = function() {
                 ui_bid: Number(item.ui_bid),
                 classId: ids.classId,
                 instanceId: ids.instanceId,
-                market_hash_name: CSGOtm.getItemHash(item),
+                market_hash_name: MarketApi.getItemHash(item),
                 left: Number(item.left),
             };
         });
@@ -286,7 +284,7 @@ MarketLayer.prototype.getSteamTradeId = function(uiBid) {
 };
 
 MarketLayer.prototype.getBalance = function() {
-    return api.accountGetMoney().then((data) => {
+    return this.api.accountGetMoney().then((data) => {
         /**
          * @property {Number} data.money
          */
@@ -296,7 +294,7 @@ MarketLayer.prototype.getBalance = function() {
 };
 
 MarketLayer.prototype.getWsAuth = function() {
-    return api.accountGetWSAuth().then((auth) => {
+    return this.api.accountGetWSAuth().then((auth) => {
         /**
          * @property {Boolean} auth.success
          * @property {String} auth.wsAuth
@@ -320,7 +318,7 @@ MarketLayer.prototype.ping = function() {
      * @property {Boolean} data.success
      * @property {String} data.ping
      */
-    return api.accountPingPong().then((data) => {
+    return this.api.accountPingPong().then((data) => {
         if(data.success) {
             logger.log("TM successfully answered: " + data.ping);
 
@@ -346,7 +344,7 @@ MarketLayer.prototype.ping = function() {
 };
 
 MarketLayer.prototype.takeItemsFromBot = function(uiBid) {
-    return api.sellCreateTradeRequest(uiBid, CSGOtm.CREATE_TRADE_REQUEST_TYPE.OUT).then((answer) => {
+    return this.api.sellCreateTradeRequest(uiBid, MarketApi.CREATE_TRADE_REQUEST_TYPE.OUT).then((answer) => {
         if(!answer.success) {
             throw answer;
         }
@@ -387,7 +385,7 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
         end = new Date();
     }
 
-    return api.accountGetOperationHistory(start, end).then((history) => {
+    return this.api.accountGetOperationHistory(start, end).then((history) => {
         if(history.success) {
             let buyEvents = history.history.filter((event) => {
                 return event.h_event === EMarketEventType.BuyGo;
