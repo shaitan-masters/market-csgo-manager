@@ -428,6 +428,8 @@ MarketLayer.prototype.getItemState = async function(marketId, operationDate) {
     } catch(e) {
         if(e.type === EErrorType.NotFound) {
             buyEvent = await getItem(extendedMargin);
+        } else {
+            throw e;
         }
     }
 
