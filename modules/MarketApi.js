@@ -53,47 +53,73 @@ class MarketCustomApi extends MarketApi {
 
             return data;
         }).catch((error) => {
-            let isApiError = error instanceof MarketApiError;
+            let [isApiError, isStringResponse, response, body] = this._errorData(error);
 
-            let response = error.response || null;
-            let body = response.body || null;
+            if(!response) {
+                this.events.emit("_error", error, currentID, isApiError);
+                return;
+            }
 
             if(isApiError) {
                 this.events.emit("_apiResponse", body, currentID);
             }
 
-            if(!isApiError && typeof body === "string" && this._errorPath) {
-                try {
-                    JSON.parse(body);
-                } catch(e) {
-                    // This is HTML page
-
-                    let urlPath = parseUrl(url).pathname.replace(/^\/|\/$/g, "").replace(/[\s\/]/g, "_");
-                    let dateString = new Date().toISOString();
-
-                    let fileName = `${urlPath}_${dateString}.html`;
-                    fs.writeFile(this._errorPath + fileName, body, (err) => {
-                        if(err) {
-                            console.log("Failed to save html answer from TM", err);
-                        }
-                    });
-                }
+            if(isStringResponse && this._errorPath) {
+                this._saveHtmlError(url, body);
             }
 
-            if(!this.__extendedError) {
-                // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
-                try {
-                    delete error.response;
-                    delete error.gotOptions;
-                } catch(e) {
-                }
-            }
+            this._removeErrorExcess(error);
 
             this.events.emit("_error", error, currentID, isApiError);
 
             throw error;
         });
     }
+
+    _errorData(err) {
+        let isApiError = err instanceof MarketApiError;
+
+        let response = err.response || null;
+        let body = null;
+        if(response) {
+            body = response.body || null;
+        }
+
+        let isStringResponse = false;
+        if(!isApiError && typeof body === "string") {
+            try {
+                JSON.parse(body);
+            } catch(e) {
+                isStringResponse = true;
+            }
+        }
+
+        return [isApiError, isStringResponse, response, body];
+    }
+
+    _saveHtmlError(url, body) {
+        let urlPath = parseUrl(url).pathname.replace(/^\/|\/$/g, "").replace(/[\s\/]/g, "_");
+        let dateString = new Date().toISOString();
+
+        let fileName = `${urlPath}_${dateString}.html`;
+        fs.writeFile(this._errorPath + fileName, body, (err) => {
+            if(err) {
+                console.log("Failed to save html answer from TM", err);
+            }
+        });
+    }
+
+    _removeErrorExcess(err) {
+        if(!this.__extendedError) {
+            // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
+            try {
+                delete error.response;
+                delete error.gotOptions;
+            } catch(e) {
+            }
+        }
+    }
+
 };
 
 module.exports = MarketCustomApi;
