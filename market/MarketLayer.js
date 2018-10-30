@@ -11,9 +11,6 @@ const MiddlewareError = require("./classes/MiddlewareError");
 const MarketApi = require("../modules/MarketApi");
 const FnExtensions = require("../modules/FnExtensions");
 
-/** @interface {console} */
-let logger;
-
 module.exports = MarketLayer;
 
 /**
@@ -25,7 +22,9 @@ module.exports = MarketLayer;
  */
 function MarketLayer(config, _logger = console) {
     this._config = config;
-    logger = _logger;
+
+    /** @interface {console} */
+    this._logger = _logger;
 
     this.started = false;
     this.pingEnabled = true;
@@ -51,11 +50,11 @@ MarketLayer.prototype.start = function() {
     }
     this.started = true;
 
-    logger.trace("Starting market layer");
+    this._logger.trace("Starting market layer");
 
     FnExtensions.setWatcher(() => {
         if(this.pingEnabled) {
-            this.ping().catch((e) => logger.error("Major error on market ping-pong", e));
+            this.ping().catch((e) => this._logger.error("Major error on market ping-pong", e));
         }
     }, this._config.pingInterval);
 };
@@ -128,7 +127,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
                 };
 
             case EMarketMessage.BadOfferPrice:
-                logger.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; buy price: ${iprice}`);
+                this._logger.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; buy price: ${iprice}`);
                 throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
 
             case EMarketMessage.BuyOfferExpired:
@@ -136,7 +135,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             case EMarketMessage.RequestErrorNoList:
             case EMarketMessage.SteamOrBotProblems:
             case EMarketMessage.BotIsBanned:
-                logger.trace(EMarketMessage.hash(message));
+                this._logger.trace(EMarketMessage.hash(message));
                 return null;
 
             case EMarketMessage.NeedToTake:
@@ -152,7 +151,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
                 throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
 
             default:
-                logger.debug("Unknown buy res", response);
+                this._logger.debug("Unknown buy res", response);
 
                 return null;
         }
@@ -248,7 +247,7 @@ MarketLayer.prototype.setTradeToken = function(newToken) {
                     throw new Error(data.error);
                 }
 
-                logger.log("Trade token updated on TM");
+                this._logger._logger("Trade token updated on TM");
             });
         }
     });
@@ -290,7 +289,7 @@ MarketLayer.prototype.getBalance = function() {
          */
 
         return Number(data.money);
-    }).catch((e) => logger.warn("Error occurred on getBalance: ", e));
+    }).catch((e) => this._logger.warn("Error occurred on getBalance: ", e));
 };
 
 MarketLayer.prototype.getWsAuth = function() {
@@ -306,7 +305,7 @@ MarketLayer.prototype.getWsAuth = function() {
 
         return auth.wsAuth;
     }).catch((err) => {
-        logger.error(err);
+        this._logger.error(err);
 
         // retry
         return this.getWsAuth();
@@ -320,23 +319,23 @@ MarketLayer.prototype.ping = function() {
      */
     return this.api.accountPingPong().then((data) => {
         if(data.success) {
-            logger.log("TM successfully answered: " + data.ping);
+            this._logger._logger("TM successfully answered: " + data.ping);
 
             return data.ping;
         } else {
             if(data.ping !== EMarketMessage.TooEarlyToPong) {
-                logger.warn("Failed to ping TM: " + data.ping);
+                this._logger.warn("Failed to ping TM: " + data.ping);
 
                 throw data.ping;
             }
         }
     }).catch((e) => {
         if(e.message !== EMarketMessage.CheckTokenOrMobile) {
-            logger.warn("Error occurred on pingPong request", e);
+            this._logger.warn("Error occurred on pingPong request", e);
 
             return null;
         } else {
-            logger.warn("Error occurred on pingPong request", e.message);
+            this._logger.warn("Error occurred on pingPong request", e.message);
 
             throw e;
         }
@@ -396,7 +395,7 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
 
             return buyEvents;
         } else {
-            logger.debug("Failed to fetch operation history", history, marketId, operationDate);
+            this._logger.debug("Failed to fetch operation history", history, operationDate);
 
             throw MiddlewareError("Failed to get history", EErrorType.HistoryFailed);
         }
@@ -421,16 +420,24 @@ MarketLayer.prototype.getItemState = async function(marketId, operationDate) {
 
         return buyEvent;
     };
+    let makeRequests = async() => {
+        try {
+            return await getItem(initialMargin);
+        } catch(e) {
+            if(e.type === EErrorType.NotFound) {
+                return await getItem(extendedMargin);
+            } else {
+                throw e;
+            }
+        }
+    };
 
     let buyEvent;
     try {
-        buyEvent = await getItem(initialMargin);
+        buyEvent = await makeRequests();
     } catch(e) {
-        if(e.type === EErrorType.NotFound) {
-            buyEvent = await getItem(extendedMargin);
-        } else {
-            throw e;
-        }
+        e.marketId = marketId;
+        throw e;
     }
 
     let stage = Number(buyEvent.stage);

@@ -32,8 +32,10 @@ require("util").inherits(MarketSockets, EventEmitter);
  * @extends {EventEmitter}
  */
 function MarketSockets(config, layer, _logger = console) {
-    logger = _logger;
     this._config = config;
+
+    /** @interface {console} */
+    this._log = _logger;
 
     this.started = false;
 
@@ -55,7 +57,7 @@ MarketSockets.prototype.start = async function() {
     }
     this.started = true;
 
-    logger.trace("Starting sockets");
+    this._log.trace("Starting sockets");
 
     await new Promise((res, rej) => {
         let ready = false;
@@ -128,7 +130,7 @@ MarketSockets.prototype._createWebSockets = function() {
         this._handleMsg(msg);
     });
     wsClient.on("error", (err) => {
-        logger.error("ws error", err);
+        this._log.error("ws error", err);
 
         //this.emit(ESocketEvent.Error, err);
     });
@@ -189,7 +191,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
         return;
     }
     if(msg === EMarketWsEvent.AuthFailed) {
-        logger.error("Auth failed. Trying to authorize again");
+        this._log.error("Auth failed. Trying to authorize again");
 
         this._authorized = false;
         this.emit(ESocketEvent.DeAuth);
@@ -203,7 +205,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
     try {
         json = JSON.parse(msg);
     } catch(e) {
-        logger.warn("This message doesn't look like a valid JSON: " + msg);
+        this._log.warn("This message doesn't look like a valid JSON: " + msg);
 
         return;
     }
@@ -211,7 +213,7 @@ MarketSockets.prototype._handleMsg = function(msg) {
     try {
         data = JSON.parse(json.data);
     } catch(e) {
-        logger.warn("This data doesn't look like a valid JSON: " + json.data);
+        this._log.warn("This data doesn't look like a valid JSON: " + json.data);
 
         return;
     }
@@ -304,7 +306,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
         } else if(data.text && data.text === EMarketMessage.SupportAnswer) {
             /* noop */
         } else {
-            logger.warn("Notification from market administration: ", data);
+            this._log.warn("Notification from market administration: ", data);
         }
     } else if(type === EMarketWsEvent.ItemOut) {
         //console.log("ItemOut", data);
@@ -321,7 +323,7 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
     } else if(type === EMarketWsEvent.AdminMessage || type === EMarketWsEvent.SetDirect) {
         // Just ignore
     } else {
-        logger.warn("Unsupported ws message type '" + type + "'", data);
+        this._log.warn("Unsupported ws message type '" + type + "'", data);
     }
 };
 
