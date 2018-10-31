@@ -133,7 +133,9 @@ WebSocketClient.prototype.send = function(data, options) {
 };
 
 WebSocketClient.prototype.ping = function() {
-    this.instance.ping("ping");
+    if(this._connected) {
+        this.instance.ping("ping");
+    }
 };
 
 WebSocketClient.prototype._handleOpen = function() {
