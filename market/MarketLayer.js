@@ -247,7 +247,7 @@ MarketLayer.prototype.setTradeToken = function(newToken) {
                     throw new Error(data.error);
                 }
 
-                this._log("Trade token updated on TM");
+                this._log.log("Trade token updated on TM");
             });
         }
     });
@@ -319,7 +319,7 @@ MarketLayer.prototype.ping = function() {
      */
     return this.api.accountPingPong().then((data) => {
         if(data.success) {
-            this._log("TM successfully answered: " + data.ping);
+            this._log.log("TM successfully answered: " + data.ping);
 
             return data.ping;
         } else {
