@@ -76,10 +76,10 @@ class MarketCustomApi extends MarketApi {
         });
     }
 
-    _errorData(err) {
-        let isApiError = err instanceof MarketApiError;
+    _errorData(error) {
+        let isApiError = error instanceof MarketApiError;
 
-        let response = err.response || null;
+        let response = error.response || null;
         let body = null;
         if(response) {
             body = response.body || null;
@@ -109,7 +109,7 @@ class MarketCustomApi extends MarketApi {
         });
     }
 
-    _removeErrorExcess(err) {
+    _removeErrorExcess(error) {
         if(!this.__extendedError) {
             // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
             try {
