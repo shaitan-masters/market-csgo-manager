@@ -35,6 +35,8 @@ function WebSocketClient(url, opts) {
 
     this._reconnecting = false;
     this._connected = false;
+
+    this._setEventShortcuts();
 }
 
 WebSocketClient.prototype.isConnected = function() {
@@ -68,11 +70,6 @@ WebSocketClient.prototype.connect = function(wsOpts) {
     ws.on("message", (data, flags) => this._handleMessage(data, flags));
     ws.on("close", (code, reason) => this._handleClose(code, reason));
     ws.on("error", (err) => this._handleError(err));
-
-    this.on("open", () => this.onOpen());
-    this.on("message", (data, number) => this.onMessage(data, number));
-    this.on("close", (e, reconnecting) => this.onClose(e, reconnecting));
-    this.on("error", (e) => this.onError(e));
 
     this.instance = ws;
 
@@ -133,9 +130,16 @@ WebSocketClient.prototype.send = function(data, options) {
 };
 
 WebSocketClient.prototype.ping = function() {
-    if(this._connected) {
-        this.instance.ping("ping");
+    if(this._authorized) {
+        this.instance.send("ping");
     }
+};
+
+WebSocketClient.prototype._setEventShortcuts = function() {
+    this.on("open", () => this.onOpen());
+    this.on("message", (data, number) => this.onMessage(data, number));
+    this.on("close", (e, reconnecting) => this.onClose(e, reconnecting));
+    this.on("error", (e) => this.onError(e));
 };
 
 WebSocketClient.prototype._handleOpen = function() {

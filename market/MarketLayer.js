@@ -135,6 +135,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             case EMarketMessage.RequestErrorNoList:
             case EMarketMessage.SteamOrBotProblems:
             case EMarketMessage.BotIsBanned:
+            case EMarketMessage.ServerError7:
                 this._log.trace(EMarketMessage.hash(message));
                 return null;
 
