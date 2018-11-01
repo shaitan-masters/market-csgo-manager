@@ -109,12 +109,17 @@ class MarketCustomApi extends MarketApi {
         });
     }
 
-    _removeErrorExcess(error) {
+    _removeErrorExcess(error, full = false) {
         if(!this.__extendedError) {
             // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
             try {
                 delete error.response;
                 delete error.gotOptions;
+
+                if(full) {
+                    delete error.body;
+                    delete error.headers;
+                }
             } catch(e) {
             }
         }
