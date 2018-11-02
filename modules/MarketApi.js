@@ -54,21 +54,18 @@ class MarketCustomApi extends MarketApi {
             return data;
         }).catch((error) => {
             let [isApiError, isStringResponse, response, body] = this._errorData(error);
-
-            if(!response) {
-                this.events.emit("_error", error, currentID, isApiError);
-                return;
-            }
+            let saveBody = isStringResponse && this._errorPath;
 
             if(isApiError) {
                 this.events.emit("_apiResponse", body, currentID);
             }
 
-            if(isStringResponse && this._errorPath) {
-                this._saveHtmlError(url, body);
+            if(response) {
+                if(saveBody) {
+                    this._saveHtmlError(url, body);
+                }
+                this._removeErrorExcess(error, saveBody);
             }
-
-            this._removeErrorExcess(error);
 
             this.events.emit("_error", error, currentID, isApiError);
 
