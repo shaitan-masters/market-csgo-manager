@@ -130,9 +130,7 @@ WebSocketClient.prototype.send = function(data, options) {
 };
 
 WebSocketClient.prototype.ping = function() {
-    if(this._authorized) {
-        this.instance.send("ping");
-    }
+    this.instance.ping("ping");
 };
 
 WebSocketClient.prototype._setEventShortcuts = function() {

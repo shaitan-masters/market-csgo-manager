@@ -107,6 +107,8 @@ MarketSockets.prototype.isConnected = function() {
  * @private
  */
 MarketSockets.prototype._createWebSockets = function() {
+    let self = this;
+
     let wsClient = new WebSocketClient(WS_URL, {
         pingInterval: this._config.pingInterval,
         minReconnectionDelay: (1 + Math.random()) * 1000,
@@ -115,7 +117,9 @@ MarketSockets.prototype._createWebSockets = function() {
 
     // Custom ping/pong procedure
     wsClient.ping = function() {
-        this.send("ping");
+        if(self._authorized) {
+            this.send("ping");
+        }
     };
 
     // Bind events
