@@ -54,17 +54,19 @@ class MarketCustomApi extends MarketApi {
             return data;
         }).catch((error) => {
             let [isApiError, isStringResponse, response, body] = this._errorData(error);
-            let saveBody = isStringResponse && this._errorPath;
+            let saveBodyFile = isStringResponse && this._errorPath;
 
-            if(isApiError) {
-                this.events.emit("_apiResponse", body, currentID);
+            let responseLog = body;
+            if(!isApiError && saveBodyFile) {
+                responseLog = 'invalid JSON response';
             }
+            this.events.emit("_apiResponse", responseLog, currentID);
 
             if(response) {
-                if(saveBody) {
+                if(saveBodyFile) {
                     this._saveHtmlError(url, body);
                 }
-                this._removeErrorExcess(error, saveBody);
+                this._removeErrorExcess(error, saveBodyFile);
             }
 
             this.events.emit("_error", error, currentID, isApiError);
@@ -108,6 +110,7 @@ class MarketCustomApi extends MarketApi {
 
     _removeErrorExcess(error, full = false) {
         if(!this.__extendedError) {
+            console.debug('_removeErrorExcess', full, Object.keys(error));
             // wrapped into try/catch because of "cannot delete property 'response' of HTTPError"
             try {
                 delete error.response;
