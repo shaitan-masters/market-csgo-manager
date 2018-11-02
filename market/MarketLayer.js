@@ -285,9 +285,10 @@ MarketLayer.prototype.getSteamTradeId = function(uiBid) {
 
 MarketLayer.prototype.getBalance = function() {
     return this.api.accountGetMoney().then((data) => {
-        /**
-         * @property {Number} data.money
-         */
+        /** @property {Number} [data.money] */
+        if(!data || typeof data.money === 'undefined') {
+            throw new Error('Failed to extract balance from response');
+        }
 
         return Number(data.money);
     }).catch((e) => this._log.warn("Error occurred on getBalance: ", e));
