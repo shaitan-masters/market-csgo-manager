@@ -80,8 +80,9 @@ WebSocketClient.prototype.connect = function(wsOpts) {
     }
 };
 
-WebSocketClient.prototype.reconnect = function(e, reason) {
-    if(this._reconnecting) {
+WebSocketClient.prototype.reconnect = function(e, reason, forced = false) {
+    if(this._reconnecting && !forced) {
+        console.trace(`WebSocketClient: is already reconnecting`);
         return;
     }
     this._reconnecting = true;
@@ -143,8 +144,7 @@ WebSocketClient.prototype._setEventShortcuts = function() {
 WebSocketClient.prototype._handleOpen = function() {
     clearTimeout(this._connectTimeout);
 
-    this._connected = true;
-    this._reconnecting = false;
+    this._resetConnected(true);
 
     if(this._opts.minUptime) {
         this._uptimeTimeout = setTimeout(() => this._handleUptime(), this._opts.minUptime);
@@ -173,7 +173,7 @@ WebSocketClient.prototype._handleError = function(e) {
 };
 
 WebSocketClient.prototype._handleClose = function(code, reason) {
-    this._connected = false;
+    this._resetConnected(false);
 
     switch(code) {
         case 1000:	// CLOSE_NORMAL
@@ -194,6 +194,8 @@ WebSocketClient.prototype._handleUptime = function() {
 WebSocketClient.prototype._handleTimeout = function() {
     console.log("ws connect timeout");
 
+    this._resetConnected(false);
+
     this.disconnect(undefined, "timeout");
 };
 
@@ -208,6 +210,11 @@ WebSocketClient.prototype._getCurrentDelay = function() {
 
     return 0;
 };
+
+WebSocketClient.prototype._resetConnected = function(value) {
+    this._reconnecting = false;
+    this._connected = value;
+}
 
 // Default events
 WebSocketClient.prototype.onOpen = function() {
