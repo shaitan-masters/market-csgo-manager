@@ -33,6 +33,7 @@ const EMarketMessage = {
     SteamOrBotProblems: "Возможны проблемы со стим или ботом, попробуйте позже.",
     BotIsBanned: "Бот забанен, скоро исправим.",
     // траблы юзера
+    VacGameBan: "Error: reason VACBan or Game ban.",
     InvalidTradeLink: "Неверная ссылка для обмена",
     SteamInventoryPrivate: "Вам нужно сначала открыть инвентарь в настройках стим профиля.",
     OfflineTradeProblem: "Ошибка проверки ссылки, наш бот не сможет забрать или передать вам вещи, проверьте возможность оффлайн трейдов на вашем аккаунте.",
