@@ -150,6 +150,8 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
                 throw MiddlewareError("Your Steam inventory is closed", EErrorType.InventoryClosed, EErrorSource.User);
             case EMarketMessage.OfflineTradeProblem:
                 throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
+            case EMarketMessage.VacGameBan:
+                throw MiddlewareError("You have VAC or game ban", EErrorType.VacGameBan, EErrorSource.User);
 
             default:
                 this._log.debug("Unknown buy res", response);

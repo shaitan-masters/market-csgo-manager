@@ -20,6 +20,7 @@ const EErrorType = {
     InvalidToken: "invalidLink", // invalid trade token provided
     InventoryClosed: "inventoryClosed",
     UnableOfflineTrade: "unableOfflineTrade",
+    VacGameBan: "vacGameBan",
 };
 Object.freeze(EErrorType);
 
