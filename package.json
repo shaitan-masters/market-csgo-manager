@@ -8,12 +8,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/MattRh/market-csgo-manager.git"
+        "url": "git+https://github.com/malsatin/market-csgo-manager.git"
     },
     "bugs": {
-        "url": "https://github.com/MattRh/market-csgo-manager/issues"
+        "url": "https://github.com/malsatin/market-csgo-manager/issues"
     },
-    "homepage": "https://github.com/MattRh/market-csgo-manager#readme",
+    "homepage": "https://github.com/malsatin/market-csgo-manager#readme",
     "keywords": [
         "steam",
         "bots",
@@ -23,12 +23,12 @@
     ],
     "license": "GNU",
     "dependencies": {
-        "market-csgo-api": "^0.3.2",
-        "tracer": "^0.9.2",
-        "ws": "^6.1.0"
+        "market-csgo-api": "^0.3.3",
+        "tracer": "^0.9.8",
+        "ws": "^6.2.1"
     },
     "devDependencies": {
-        "chalk": "^2.4.1",
+        "chalk": "^2.4.2",
         "https-proxy-agent": "^2.2.1",
         "json5": "^2.1.0",
         "merge": "^1.2.1",
