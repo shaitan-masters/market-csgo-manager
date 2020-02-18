@@ -16,6 +16,7 @@ const EMarketMessage = {
     // Вывод предмета
     RequestErrorNoItems: "Ошибка создания заявки: У вас нет вещей для передачи",
     RequestErrorWrongBotId: "Ошибка создания заявки: Неправильный номер бота",
+    RequestErrorItemListFail: "Ошибка создания заявки: Не удалось получить список предметов",
     RequestUnexpectedError: "Ошибка создания заявки: Exception", // Unexpected error. Normally we don't have to get it at all
 
     // Закупка предмета
