@@ -176,9 +176,10 @@ MarketLayer.prototype.tradeData = function(partnerId, tradeToken) {
  * Returns asset variants to buy the item, sorted by their price
  * @param {String} mhn - Item hash name
  * @param {Number?} [maxPrice] - Max item price that we can accept
- * @return {Promise<Array<{instanceId: String, classId: String, price: Number, offers: Number}>>}
+ * @return {Array<{instanceId: String, classId: String, price: Number, offers: Number}>}
+ * @async
  */
-MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
+MarketLayer.prototype.getItemOffers = async function(mhn, maxPrice) {
     let allowedPrice = maxPrice ? this._config.preparePrice(maxPrice) : Number.MAX_VALUE;
 
     function extractOffers(items) {
@@ -186,7 +187,7 @@ MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
             let ids = MarketApi.getItemIds(item);
 
             return {
-                hashName: mhn,
+                hashName: MarketApi.getItemHash(item),
                 instanceId: ids.instanceId,
                 classId: ids.classId,
                 price: Number(item.price),
@@ -196,37 +197,31 @@ MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
     }
 
     function prepareOffers(items) {
-        return items.filter((item) => {
-            // remove all expensive and invalid offers
-            return item.price <= allowedPrice && item.offers > 0;
-        }).sort((a, b) => {
-            // sort offers from cheapest to most expensive
-            return a.price - b.price;
-        });
+        return items
+            .filter((item) => item.price <= allowedPrice && item.offers > 0) // remove all expensive and empty offers
+            .filter((item) => item.hashName === mhn) // remove all offers with the wrong items (yes, that happens)
+            .sort((a, b) => a.price - b.price); // sort offers from cheapest to most expensive
     }
 
-    return this.api.searchItemByName(mhn).then((itemVariants) => {
-        if(!itemVariants.success) {
-            throw MiddlewareError("Can't get item variants on TM", EErrorType.RequestFailed, EErrorSource.Market);
-        }
-        if(!itemVariants.list || itemVariants.list.length === 0) {
-            throw MiddlewareError("Got empty list of item variants on TM", EErrorType.NotFound, EErrorSource.Market);
-        }
+    let itemVariants = await this.api.searchItemByName(mhn);
+    if(!itemVariants.success) {
+        throw MiddlewareError("Can't get item variants on TM", EErrorType.RequestFailed, EErrorSource.Market);
+    }
+    if(!itemVariants.list || itemVariants.list.length === 0) {
+        throw MiddlewareError("Got empty list of item variants on TM", EErrorType.NotFound, EErrorSource.Market);
+    }
 
-        let rawVariants = extractOffers(itemVariants.list);
-        let sortedVariants = prepareOffers(rawVariants);
+    let rawVariants = extractOffers(itemVariants.list);
+    let preparedVariants = prepareOffers(rawVariants);
 
-        //t.list.filter((a) => a.market_hash_name === "Dual Berettas | Contractor (Field-Tested)");
+    if(preparedVariants.length === 0) {
+        let message = "There are variants, but all of them are too expensive or invalid";
+        let lowestPrice = Math.min.apply(null, rawVariants.map((item) => item.price));
 
-        if(sortedVariants.length === 0) {
-            let message = "There are variants, but all of them are too expensive";
-            let lowestPrice = Math.min.apply(null, rawVariants.map((item) => item.price));
+        throw MiddlewareError(message, EErrorType.TooHighPrices, EErrorSource.Owner, {lowestPrice});
+    }
 
-            throw MiddlewareError(message, EErrorType.TooHighPrices, EErrorSource.Owner, {lowestPrice});
-        }
-
-        return sortedVariants;
-    });
+    return preparedVariants;
 };
 
 /**
