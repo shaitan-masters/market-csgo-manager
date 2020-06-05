@@ -216,6 +216,8 @@ MarketLayer.prototype.getItemOffers = function(mhn, maxPrice) {
         let rawVariants = extractOffers(itemVariants.list);
         let sortedVariants = prepareOffers(rawVariants);
 
+        //t.list.filter((a) => a.market_hash_name === "Dual Berettas | Contractor (Field-Tested)");
+
         if(sortedVariants.length === 0) {
             let message = "There are variants, but all of them are too expensive";
             let lowestPrice = Math.min.apply(null, rawVariants.map((item) => item.price));
