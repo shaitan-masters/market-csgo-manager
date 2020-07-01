@@ -326,6 +326,8 @@ MarketSockets.prototype._handleMsgByType = function(type, data) {
         //console.log("BetNotification", type, JSON.parse(data));
     } else if(type === EMarketWsEvent.AdminMessage || type === EMarketWsEvent.SetDirect) {
         // Just ignore
+    } else if(type === EMarketWsEvent.OnlineCheck || type === EMarketWsEvent.SetOnline) {
+        // Unknown messages. Currently can be ignored
     } else {
         this._log.warn("Unsupported ws message type '" + type + "'", data);
     }

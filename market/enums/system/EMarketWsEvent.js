@@ -24,6 +24,9 @@ const EMarketWsEvent = {
     Notification: "webnotify", // Ответ тех. поддержки
     BetNotificationCs: "webnotify_bets_cs", // Спам
     BetNotificationGo: "webnotify_bets_go", // Спам
+
+    OnlineCheck: "onlinecheck", // На данный момент не знаю, что означает. Содержит какую-то рандомную строку в 10 символов
+    SetOnline: "setonline", // На данный момент не знаю, что означает. Содерит либо ON либо OFF
 };
 Object.freeze(EMarketWsEvent);
 
