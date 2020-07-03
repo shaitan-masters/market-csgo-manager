@@ -21,6 +21,7 @@ const EErrorType = {
     InventoryClosed: "inventoryClosed",
     UnableOfflineTrade: "unableOfflineTrade",
     VacGameBan: "vacGameBan",
+    CanceledTrades: "canceledTrades",
 };
 Object.freeze(EErrorType);
 

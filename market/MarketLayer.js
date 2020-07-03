@@ -152,6 +152,8 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
                 throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
             case EMarketMessage.VacGameBan:
                 throw MiddlewareError("You have VAC or game ban", EErrorType.VacGameBan, EErrorSource.User);
+            case EMarketMessage.CanceledTrades:
+                throw MiddlewareError("You have declined too many trades", EErrorType.CanceledTrades, EErrorSource.User);
 
             default:
                 this._log.debug("Unknown buy res", response);
