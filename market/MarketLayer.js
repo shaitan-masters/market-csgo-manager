@@ -136,8 +136,6 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
     let uprice = instance.price;
 
     return this.api.buyCreate(instance, uprice, tradeData, gotOptions).then((response) => {
-        let moneySpent = this._applyDiscount(instance.min_price || uprice);
-
         let message = response.result;
         switch(message) {
             case EMarketMessage.Ok:
@@ -145,11 +143,11 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
                     uiId: response.id,
                     classId: instance.classId,
                     instanceId: instance.instanceId,
-                    price: moneySpent,
+                    price: this._applyDiscount(instance.min_price || uprice),
                 };
 
             case EMarketMessage.BadOfferPrice:
-                this._log.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; spent: ${moneySpent}`);
+                this._log.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; price: ${uprice}`);
                 throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
 
             case EMarketMessage.BuyOfferExpired:
@@ -264,12 +262,17 @@ MarketLayer.prototype._getAccountBalance = function() {
 };
 
 MarketLayer.prototype._getBuyDiscount = async function() {
-    let discounts = await this.api.accountGetDiscounts().discounts;
+    let response = await this.api.accountGetDiscounts();
+    if(!response.success) {
+        return 0;
+    }
+
+    let discounts = response.discounts;
     if(!discounts || !discounts.buy_discount) {
         return 0;
     }
 
-    return discounts.buy_discount.replace('%', '') * 100;
+    return discounts.buy_discount.replace('%', '') / 100;
 };
 
 MarketLayer.prototype._applyDiscount = function(price) {
