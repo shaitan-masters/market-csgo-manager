@@ -31,7 +31,9 @@ function MarketLayer(config, _logger = console) {
 
     this.api = new MarketApi({
         gotOptions: {
-            agent: config.proxy,
+            agent: {
+                https: config.proxy,
+            },
             retry: {
                 retries: 3,
                 statusCodes: [408, 413, 429, 500, 502, 503, 504, 520]
