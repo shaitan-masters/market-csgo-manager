@@ -23,7 +23,7 @@
     ],
     "license": "GNU",
     "dependencies": {
-        "market-csgo-api": "^0.3.14",
+        "market-csgo-api": "^0.4.0",
         "tracer": "^1.1.2",
         "ws": "^7.3.0",
         "bufferutil": "^4.0.1",
