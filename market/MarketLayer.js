@@ -78,6 +78,13 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
         let balance = this._getAccountBalance();
         let instance = offers.shift();
 
+        // fix for BuyOfferExpired. May also decrease total buying costs
+        if(this._config.hackExpiredOffers && offers.length > 0) {
+            let nextInstance = offers[0];
+
+            instance.price = Math.max(instance.price, nextInstance.price - 1);
+        }
+
         if(balance !== false && instance.price > balance) {
             throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: instance.price});
         }
