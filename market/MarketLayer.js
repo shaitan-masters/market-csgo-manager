@@ -82,7 +82,9 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
         if(this._config.hackExpiredOffers && offers.length > 0) {
             let nextInstance = offers[0];
 
-            instance.price = Math.max(instance.price, nextInstance.price - 1);
+            if(nextInstance.offers > 1) {
+                instance.price = Math.max(instance.price, nextInstance.price - 1);
+            }
         }
 
         if(balance !== false && instance.price > balance) {
