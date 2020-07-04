@@ -82,6 +82,7 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
         if(this._config.hackExpiredOffers && offers.length > 0) {
             let nextInstance = offers[0];
 
+            instance.min_price = instance.price; // fall back
             instance.price = Math.max(instance.price, nextInstance.price - 1);
         }
 
@@ -121,9 +122,10 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             retries: 1,
         },
     };
-    let iprice = instance.price;
+    let uprice = instance.price; // used for buying
+    let iprice = instance.min_price || uprice; // our best case expectation
 
-    return this.api.buyCreate(instance, iprice, tradeData, gotOptions).then((response) => {
+    return this.api.buyCreate(instance, uprice, tradeData, gotOptions).then((response) => {
         let message = response.result;
 
         switch(message) {
@@ -151,7 +153,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             case EMarketMessage.NeedToTake:
                 throw MiddlewareError("Need to withdraw items", EErrorType.NeedToTake, EErrorSource.Owner);
             case EMarketMessage.NeedMoney:
-                throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: iprice});
+                throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: uprice});
 
             case EMarketMessage.InvalidTradeLink:
                 throw MiddlewareError("Your trade link is invalid", EErrorType.InvalidToken, EErrorSource.User);
