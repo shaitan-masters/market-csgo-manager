@@ -144,6 +144,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
                     classId: instance.classId,
                     instanceId: instance.instanceId,
                     price: this._applyDiscount(instance.min_price || uprice),
+                    offerPrice: instance.min_price, // original price, provided by the market
                 };
 
             case EMarketMessage.BadOfferPrice:
