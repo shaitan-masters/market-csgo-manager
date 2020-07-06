@@ -214,7 +214,7 @@ MarketLayer.prototype.getItemOffers = async function(mhn, maxPrice) {
                 instanceId: ids.instanceId,
                 classId: ids.classId,
                 price: Number(item.price),
-                offers: Number(item.offers),
+                offers: Number(item.offers || item.count),
             };
         });
     }
@@ -226,15 +226,15 @@ MarketLayer.prototype.getItemOffers = async function(mhn, maxPrice) {
             .sort((a, b) => a.price - b.price); // sort offers from cheapest to most expensive
     }
 
-    let itemVariants = await this.api.searchItemByName(mhn);
+    let itemVariants = await this.api.searchV2ItemByHash(mhn);
     if(!itemVariants.success) {
         throw MiddlewareError("Can't get item variants on TM", EErrorType.RequestFailed, EErrorSource.Market);
     }
-    if(!itemVariants.list || itemVariants.list.length === 0) {
+    if(!itemVariants.data || itemVariants.data.length === 0) {
         throw MiddlewareError("Got empty list of item variants on TM", EErrorType.NotFound, EErrorSource.Market);
     }
 
-    let rawVariants = extractOffers(itemVariants.list);
+    let rawVariants = extractOffers(itemVariants.data);
     let preparedVariants = prepareOffers(rawVariants);
 
     if(preparedVariants.length === 0) {
