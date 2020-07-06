@@ -263,7 +263,15 @@ MarketLayer.prototype._getAccountBalance = function() {
 };
 
 MarketLayer.prototype._getBuyDiscount = async function() {
-    let response = await this.api.accountGetDiscounts();
+    let response;
+    try {
+        response = await this.api.accountGetDiscounts();
+    } catch(e) {
+        this._log.error("Failed to get discounts: ", e);
+
+        return 0;
+    }
+
     if(!response.success) {
         return 0;
     }
