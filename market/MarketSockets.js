@@ -111,7 +111,7 @@ MarketSockets.prototype._createWebSockets = function() {
 
     let wsClient = new WebSocketClient(WS_URL, {
         pingInterval: this._config.pingInterval,
-        minReconnectionDelay: (1 + Math.random()) * 1000,
+        minReconnectionDelay: (1 + 2 * Math.random()) * 1000,
         maxReconnectionDelay: 7500,
     });
 

@@ -37,6 +37,8 @@ function WebSocketClient(url, opts) {
     this._connected = false;
 
     this._setEventShortcuts();
+
+    this._messageBuffer = [];
 }
 
 WebSocketClient.prototype.isConnected = function() {
@@ -55,7 +57,7 @@ WebSocketClient.prototype.connect = function(wsOpts) {
     }
 
     if(this._attempts >= this._opts.maxRetries) {
-        console.log("Max retries reached", this._attempts, ">=", this._opts.maxRetries);
+        console.log("WebSocketClient: max retries reached", this._attempts, ">=", this._opts.maxRetries);
         return;
     }
     this._attempts++;
@@ -95,7 +97,7 @@ WebSocketClient.prototype.reconnect = function(e, reason, forced = false) {
     }
 
     setTimeout(() => {
-        console.log("WebSocketClient: reconnecting...");
+        console.log(`WebSocketClient: reconnecting...`);
 
         this.connect();
 
@@ -118,6 +120,12 @@ WebSocketClient.prototype.disconnect = function(code, reason) {
 };
 
 WebSocketClient.prototype.send = function(data, options) {
+    if(!this.instance) {
+        this._messageBuffer.push([data, options]);
+
+        return;
+    }
+
     //console.log("ws send", data);
 
     this.instance.send(data, options, (err) => {
@@ -131,6 +139,10 @@ WebSocketClient.prototype.send = function(data, options) {
 };
 
 WebSocketClient.prototype.ping = function() {
+    if(!this.instance) {
+        return;
+    }
+
     this.instance.ping("ping");
 };
 
@@ -153,6 +165,16 @@ WebSocketClient.prototype._handleOpen = function() {
     }
 
     this.emit("open");
+
+    if(this._messageBuffer.length > 0) {
+        console.log(`WebSocketClient: sending ${this._messageBuffer.length} buffered messages`);
+
+        for(let i of this._messageBuffer) {
+            this.send(i[0], i[1]);
+        }
+
+        this._messageBuffer = [];
+    }
 };
 
 WebSocketClient.prototype._handleMessage = function(data) {
@@ -177,7 +199,7 @@ WebSocketClient.prototype._handleClose = function(code, reason) {
 
     switch(code) {
         case 1000:	// CLOSE_NORMAL
-            console.log("WebSocket: closed");
+            console.log("WebSocketClient: closed");
             break;
         default:	// Abnormal closure
             this.reconnect(code, "close");
@@ -192,7 +214,12 @@ WebSocketClient.prototype._handleUptime = function() {
 };
 
 WebSocketClient.prototype._handleTimeout = function() {
-    console.log("ws connect timeout");
+    if(this.instance.readyState === WebSocket.OPEN) {
+        // our "open" event handler was set after the connection was opened
+        return;
+    }
+
+    //console.log("ws connect timeout");
 
     this._resetConnected(false);
 
