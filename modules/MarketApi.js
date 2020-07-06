@@ -118,6 +118,9 @@ class MarketCustomApi extends MarketApi {
                 if(error.response) {
                     delete error.response;
                 }
+                if(error.timings) {
+                    delete error.timings;
+                }
             } catch(e) {
             }
 
