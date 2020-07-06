@@ -112,12 +112,18 @@ class MarketCustomApi extends MarketApi {
         if(!this.__extendedError && error) {
             // Added, because `TypeError: Cannot delete property 'response' of HTTPError`
             try {
-                if(error.gotOptions) {
-                    delete error.gotOptions;
-                }
                 if(error.response) {
                     delete error.response;
                 }
+            } catch(e) {
+            }
+            try {
+                if(error.gotOptions) {
+                    delete error.gotOptions;
+                }
+            } catch(e) {
+            }
+            try {
                 if(error.timings) {
                     delete error.timings;
                 }
