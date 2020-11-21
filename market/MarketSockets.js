@@ -80,6 +80,14 @@ MarketSockets.prototype.start = async function() {
     this._setPingWatchdog();
 };
 
+MarketSockets.prototype.reconnect = function() {
+    try {
+        this.ws.reconnect();
+    } catch(e) {
+        console.log("Failed to reconnect to Websockets: ", e);
+    }
+};
+
 /**
  * @return {Boolean} - are we currently connected to sockets
  */
