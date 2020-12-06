@@ -1,6 +1,6 @@
 {
     "name": "market-csgo-manager",
-    "version": "0.2.23",
+    "version": "0.2.24",
     "author": "Malsa",
     "description": "High level wrapper for market.csgo.com (AKA tm.csgo.com)",
     "scripts": {
@@ -25,7 +25,7 @@
     "dependencies": {
         "market-csgo-api": "^0.4.7",
         "tracer": "^1.1.4",
-        "ws": "^7.4.0",
+        "ws": "^7.4.1",
         "bufferutil": "^4.0.2",
         "https-proxy-agent": "^5.0.0",
         "tunnel": "^0.0.6",
