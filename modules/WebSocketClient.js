@@ -120,7 +120,7 @@ WebSocketClient.prototype.disconnect = function(code, reason) {
 };
 
 WebSocketClient.prototype.send = function(data, options) {
-    if(!this.instance) {
+    if(!this.instance || this.instance.readyState !== 1) {
         this._messageBuffer.push([data, options]);
 
         return;
