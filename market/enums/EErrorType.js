@@ -5,9 +5,9 @@
  * @enum {String}
  */
 const EErrorType = {
-    NotFound: "notFound", // необходимая сущность не найдена
-    RequestFailed: "failedRequest", // маркет не вернул ответ success
-    AttemptsFailed: "failedAttempts", // все поптыки выполнить действие провалились
+    NotFound: "notFound", // required entity not found
+    RequestFailed: "failedRequest", // market did not return `success` response
+    AttemptsFailed: "failedAttempts", // all attempts to execute the action have failed
 
     UnknownStage: "unknownStage",
     HistoryFailed: "historyFail",
@@ -16,6 +16,8 @@ const EErrorType = {
     NeedMoney: "needMoney",
     NeedToTake: "needToTake",
     BadOfferPrice: "badItemPrice",
+
+    TradeCreationFailed: "tradeCreationFailed", // unused
 
     InvalidToken: "invalidLink", // invalid trade token provided
     InventoryClosed: "inventoryClosed",
