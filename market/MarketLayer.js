@@ -337,12 +337,15 @@ MarketLayer.prototype.getSteamTradeId = function(uiBid) {
     return this.takeItemsFromBot(uiBid).then((botTrade) => botTrade.trade_id);
 };
 
-MarketLayer.prototype.getBalance = function() {
+MarketLayer.prototype.getBalance = async function() {
+    const data = await this.api.accountV2GetMoney();
+    if(!data || typeof data.money === 'undefined' || !data.success) {
+        throw new Error('Failed to extract balance from response');
+    }
+
+    return data;
+
     return this.api.accountGetMoney().then((data) => {
-        /** @property {Number} [data.money] */
-        if(!data || typeof data.money === 'undefined') {
-            throw new Error('Failed to extract balance from response');
-        }
 
         return Number(data.money);
     }).catch((e) => this._log.warn("Error occurred on getBalance: ", e));
