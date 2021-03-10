@@ -5,7 +5,6 @@ const WATCHDOG_TIME = 60 * 1000;
 const WATCHDOG_INTERVAL = 5 * 1000;
 
 // Market specific things
-const WS_URL = "wss://wsn.dota2.net/wsn/";
 const DEFAULT_LEFT_TIME = -1;
 
 const EventEmitter = require("events").EventEmitter;
@@ -117,7 +116,7 @@ MarketSockets.prototype.isConnected = function() {
 MarketSockets.prototype._createWebSockets = function() {
     let self = this;
 
-    let wsClient = new WebSocketClient(WS_URL, {
+    let wsClient = new WebSocketClient(this._config.basePath, {
         pingInterval: this._config.pingInterval,
         minReconnectionDelay: (1 + 2 * Math.random()) * 1000,
         maxReconnectionDelay: 7500,
