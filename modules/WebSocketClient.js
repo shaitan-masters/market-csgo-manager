@@ -6,7 +6,7 @@ const WebSocket = require("ws");
 const DEFAULTS = {
     pingInterval: 30 * 1000,
     minReconnectionDelay: 1000 + Math.random() * 2500,
-    maxReconnectionDelay: 15 * 1000,
+    maxReconnectionDelay: 20 * 1000,
     reconnectionDelayGrowFactor: 1.25,
     minUptime: 2.5 * 1000,
     maxRetries: Infinity,
@@ -120,7 +120,7 @@ WebSocketClient.prototype.disconnect = function(code, reason) {
 };
 
 WebSocketClient.prototype.send = function(data, options) {
-    if(!this.instance || this.instance.readyState !== 1) {
+    if(!this.instance || this.instance.readyState !== WebSocket.OPEN) {
         this._messageBuffer.push([data, options]);
 
         return;
@@ -214,6 +214,9 @@ WebSocketClient.prototype._handleUptime = function() {
 };
 
 WebSocketClient.prototype._handleTimeout = function() {
+    if(!this.instance) {
+        return;
+    }
     if(this.instance.readyState === WebSocket.OPEN) {
         // our "open" event handler was set after the connection was opened
         return;

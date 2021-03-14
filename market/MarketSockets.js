@@ -17,9 +17,6 @@ const ESocketEvent = require("./enums/ESocketEvent");
 
 const WebSocketClient = require("../modules/WebSocketClient");
 
-/** @interface {console} */
-let logger;
-
 module.exports = MarketSockets;
 require("util").inherits(MarketSockets, EventEmitter);
 
