@@ -388,6 +388,7 @@ MarketSockets.prototype._setPingWatchdog = function() {
     // Set timer
     this._updateWatchdogClock();
     this.ws.on("message", () => this._updateWatchdogClock());
+    this.ws.on("reconnect", () => this._updateWatchdogClock());
 
     // Set watcher
     this._pingWatchdog = setInterval(() => {
