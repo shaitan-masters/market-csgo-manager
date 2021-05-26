@@ -1,44 +1,80 @@
+#!!! 
+
+#Not fully refactored - some parts will be developed or rewritten with the bots modules - according to their actual requirements
+
+
+The main focus of this work is to structure emitters chain,
+to dedicate the responsibility and to reduce coupling, codebase size, 
+to make it able to be customized, to implement DRY etc
+
 # CS:GO-market Manager
 High level wrapper for market.csgo.com (AKA tm.csgo.com)
 > Only items bought supported currently and focuses on CS:GO
 
-## Config
+##Import
+``const MarketManager = require('market-csgo-manager')
+``
 
-### Minimal required
+##Usage
+````javascript
+const marketManager = new MarketManager({
+    APIKey: 'xxxrrr44'
+})
+````
+Then subscribe to events list (to be fullfilled)
 
-```json
-{
-    "market": {
-        "apiKey": "xxx"
-    }
-}
-```
+````javascript
+marketManager.on('start', () => {})
+marketManager.on('itemBought', item => {})
+marketManager.on('wsStuck', () => {})
+marketManager.on('APITimeout', () => {})
 
-### Default values
 
-```json5
-{
-    "manager": {
-        "balanceValidationInterval": 90000, // 1.5 * 60 * 1000 - Balance integrity check if we are connected to ws
-        "avoidBadBots": true, // If we know that some offer is laggy we will firstly try to skip it
-        "safeBuyRequests": true, // If market returns http error on by request we will check, did we really bought
-        "dataDir": null, // Where system data should be stored, should be absolute path or nothing
-        "logApiCalls": false // Should we log all api calls to market?(works only if data dir is set) . Or you can pass your own logger
-    },
-    "market": {
-        "apiKey": "", // Required
-        "pingInterval": 185000, // 3 * 60 * 1000 + 5 * 1000
-        "handleTimezone": false,
-        "allowedPriceFluctuation": 0,
-        "compromiseFactor": 0,
-        "minCompromise": 0
-    },
-    "sockets": {
-        "pingInterval": 20000 // 20 * 1000
-    },
-    "knapsack": {
-        "validationInterval": 60000, // 60 * 1000 - if we have connection to ws
-        "updateInterval": 20000 // 20 * 1000 - using if don't have connection to ws
-    }
-}
-```
+````
+
+##Structure
+General class is dist/MarketManager
+
+it takes API key as an argument
+Then it inits APIProvider lib, starts reconnecting WS server and 
+subscribes to WS events, also it inits cache manager etc and binds 
+methods
+
+class methods are in versions/v2
+
+each method has a directory with index file and helpers
+
+like versions/v2/buy
+- index.js
+- helpers
+- - get_item_ids.js
+    
+libs keeping offers cache and balance data are in ./lib
+
+WS stuff is in ./lib/ws
+
+WebSocket manager is a class decorating WS client class,
+it decides what to do if connection fails, triggers different callbacks
+on messages after parse and type checking etc
+
+All libs can trigger events on main class which causes either
+some class methods calls or emitting events to which
+user app is subscribed
+
+
+# Build
+
+`npm run build` compiles stuff from `src` dir to `dist`
+
+# Tests
+
+1) in `test/stuff` rename `.test_API_key` to `test_API_key`
+2) add your key there
+3) run `npm run test`. It compiles .ts to .js and tests js out
+
+# N.B.:
+
+As an Orthodox Russian redneck, I suffer from 'shaitan' naming >:-)
+
+Hope this lib will work `Ad majore Dei gloriam`
+

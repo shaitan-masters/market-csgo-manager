@@ -1,0 +1,15 @@
+{
+  "client_errors": {
+    "different_API_keys": "Different API Keys provided fo this lib and API provider",
+     "no_api_key_for_private_method": "No API key fro private method provided. Call public methods or init like \n myAPI = require new MarketApi({apiKey: 'a1b2C3d4E5f6'})"
+  },
+  "crash_errors": {
+    "cant_init_library": "Can't init the API provider li{
+  "client_errors": {
+    "different_API_keys": "Different API Keys provided fo this lib and API provider",
+     "no_api_key_for_private_method": "No API key fro private method provided. Call public methods or init like \n myAPI = require new MarketApi({apiKey: 'a1b2C3d4E5f6'})"
+  },
+  "crash_errors": {
+    "cant_init_library": "Can't init the API provider library"
+  }
+}

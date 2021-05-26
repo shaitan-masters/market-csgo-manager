@@ -1,0 +1,5 @@
+{
+  "connection_timeout": 2000,
+  "reconnection_delay_grow_factor": 2,
+  "max_retries": 8
+}
