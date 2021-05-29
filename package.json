@@ -29,10 +29,10 @@
         "node-cache": "^5.1.2",
         "tracer": "^1.1.4",
         "tunnel": "^0.0.6",
-        "ws": "^7.4.4"
+        "ws": "^7.4.6"
     },
     "devDependencies": {
-        "chalk": "^4.1.0",
+        "chalk": "^4.1.1",
         "json5": "^2.2.0",
         "merge": "^2.1.1",
         "prettyjson": "^1.2.1"
