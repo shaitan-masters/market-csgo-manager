@@ -137,6 +137,8 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
 
     return this.api.buyCreate(instance, uprice, tradeData, gotOptions).then((response) => {
         let message = response.result;
+        message = EMarketMessage[EMarketMessage.hash(message)]; // workaround because we can receive either russian or english message
+
         switch(message) {
             case EMarketMessage.Ok:
                 return {
