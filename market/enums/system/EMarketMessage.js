@@ -35,9 +35,9 @@ const EMarketMessage = {
     BotIsBanned: "Бот забанен, скоро исправим.",
     // траблы юзера
     VacGameBan: "Error: reason VACBan or Game ban.",
-    InvalidTradeLink: "Неверная ссылка для обмена",
-    SteamInventoryPrivate: "Вам нужно сначала открыть инвентарь в настройках стим профиля.",
-    OfflineTradeProblem: "Ошибка проверки ссылки, наш бот не сможет забрать или передать вам вещи, проверьте возможность оффлайн трейдов на вашем аккаунте.",
+    InvalidTradeLink: "Invalid trade link",
+    SteamInventoryPrivate: "First you must open your inventory in your Steam profile settings.",
+    OfflineTradeProblem: "Error verifying link. Our bot cannot take or transfer your items. Please check the function of offline trades on your account.",
     BadTokenInvClosed: "bad_token_inv_closed",
     CanceledTrades: "Передача предмета на этого пользователя не возможна, из-за не принятия большого кол-ва обменов.",
     BuyCanceledTrades: "Вы не можете покупать, так как не приняли слишком много предложений обмена",
