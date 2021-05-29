@@ -1,6 +1,18 @@
 "use strict";
 
 /**
+ * На аккаунте бота могут включить английский язык и его тоже нужно поддерживать
+ * @readonly
+ * @enum {String}
+ */
+const EMarketMessageEn = {
+    BuyOfferExpired: "Unfortunately, the offer has ended. Please refresh the page",
+    InvalidTradeLink: "Invalid trade link",
+    SteamInventoryPrivate: "First you must open your inventory in your Steam profile settings.",
+    OfflineTradeProblem: "Error verifying link. Our bot cannot take or transfer your items. Please check the function of offline trades on your account.",
+};
+
+/**
  * Любое текстовое сообщение в ws событии или ответ на запрос к API.
  * Больше всего вариантов у метода `Buy`.
  * @readonly
@@ -35,9 +47,9 @@ const EMarketMessage = {
     BotIsBanned: "Бот забанен, скоро исправим.",
     // траблы юзера
     VacGameBan: "Error: reason VACBan or Game ban.",
-    InvalidTradeLink: "Invalid trade link",
-    SteamInventoryPrivate: "First you must open your inventory in your Steam profile settings.",
-    OfflineTradeProblem: "Error verifying link. Our bot cannot take or transfer your items. Please check the function of offline trades on your account.",
+    InvalidTradeLink: "Неверная ссылка для обмена",
+    SteamInventoryPrivate: "Вам нужно сначала открыть инвентарь в настройках стим профиля.",
+    OfflineTradeProblem: "Ошибка проверки ссылки, наш бот не сможет забрать или передать вам вещи, проверьте возможность оффлайн трейдов на вашем аккаунте.",
     BadTokenInvClosed: "bad_token_inv_closed",
     CanceledTrades: "Передача предмета на этого пользователя не возможна, из-за не принятия большого кол-ва обменов.",
     BuyCanceledTrades: "Вы не можете покупать, так как не приняли слишком много предложений обмена",
@@ -49,7 +61,7 @@ const EMarketMessage = {
     hash: function(message) {
         for(let name in EMarketMessage) {
             if(EMarketMessage.hasOwnProperty(name)) {
-                if(EMarketMessage[name] === message) {
+                if(EMarketMessage[name] === message || EMarketMessageEn[name] === message) {
                     return name;
                 }
             }
@@ -58,6 +70,7 @@ const EMarketMessage = {
         return null;
     },
 };
+
 Object.freeze(EMarketMessage);
 
 module.exports = EMarketMessage;
