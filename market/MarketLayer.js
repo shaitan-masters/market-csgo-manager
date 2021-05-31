@@ -156,6 +156,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             case EMarketMessage.BuyOfferExpired:
             case EMarketMessage.SomebodyBuying:
             case EMarketMessage.RequestErrorNoList:
+            case EMarketMessage.FailedToFindItem:
             case EMarketMessage.SteamOrBotProblems:
             case EMarketMessage.BotIsBanned:
             case EMarketMessage.ServerError7:

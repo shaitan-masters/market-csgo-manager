@@ -6,6 +6,9 @@
  * @enum {String}
  */
 const EMarketMessageEn = {
+    BadOfferPrice: "You cannot buy this item at that price. Contact tech support",
+    SomebodyBuying: "Someone is already buying this item. Please try again",
+    FailedToFindItem: "Item search error",
     BuyOfferExpired: "Unfortunately, the offer has ended. Please refresh the page",
     InvalidTradeLink: "Invalid trade link",
     SteamInventoryPrivate: "First you must open your inventory in your Steam profile settings.",
@@ -38,6 +41,7 @@ const EMarketMessage = {
     // что-то пошло не так
     BadOfferPrice: "Покупка данного предмета по такой цене невозможна. Обратитесь в техподдержку",
     RequestErrorNoList: "Ошибка создания заявки: Не удалось получить список предметов",
+    FailedToFindItem: "Ошибка поиска предмета",
     // попробуйте снова
     BuyOfferExpired: "К сожалению, предложение устарело. Обновите страницу",
     SomebodyBuying: "Кто-то уже покупает этот предмет. Попробуйте ещё",
