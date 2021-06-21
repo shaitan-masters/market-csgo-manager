@@ -1,0 +1,43 @@
+{
+    "name": "market-csgo-manager",
+    "version": "0.2.39",
+    "author": "Malsa",
+    "description": "High level wrapper for market.csgo.com (AKA tm.csgo.com)",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/malsatin/market-csgo-manager.git"
+    },
+    "bugs": {
+        "url": "https://github.com/malsatin/market-csgo-manager/issues"
+    },
+    "homepage": "https://github.com/malsatin/market-csgo-manager#readme",
+    "keywords": [
+        "steam",
+        "bots",
+        "lib",
+        "market",
+        "csgo"
+    ],
+    "license": "GNU",
+    "dependencies": {
+        "bufferutil": "^4.0.3",
+        "https-proxy-agent": "^5.0.0",
+        "market-csgo-api": "^0.4.12",
+        "node-cache": "^5.1.2",
+        "tracer": "^1.1.4",
+        "tunnel": "^0.0.6",
+        "ws": "^7.4.6"
+    },
+    "devDependencies": {
+        "chalk": "^4.1.1",
+        "json5": "^2.2.0",
+        "merge": "^2.1.1",
+        "prettyjson": "^1.2.1"
+    },
+    "engines": {
+        "node": ">=12.0.0"
+    }
+}
