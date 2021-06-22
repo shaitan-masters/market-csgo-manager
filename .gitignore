@@ -67,3 +67,5 @@ lib
 
 debug/config.json
 
+#package-lock
+package-lock.json

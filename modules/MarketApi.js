@@ -3,8 +3,7 @@
 const parseUrl = require("url").parse;
 const fs = require("fs");
 const EventEmitter = require("events").EventEmitter;
-
-const MarketApi = require("market-csgo-api");
+const MarketApi =    require(process.env.IS_TEST ? './../../market-csgo-api'  : 'market-csgo-api');
 const MarketApiError = MarketApi.MarketApiError;
 
 /**
