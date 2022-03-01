@@ -25,7 +25,7 @@
     "dependencies": {
         "bufferutil": "^4.0.3",
         "https-proxy-agent": "^5.0.0",
-        "market-csgo-api": "^0.4.12",
+        "market-csgo-api": "^0.4.18",
         "node-cache": "^5.1.2",
         "tracer": "^1.1.4",
         "tunnel": "^0.0.6",
