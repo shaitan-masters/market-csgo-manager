@@ -9,6 +9,8 @@ const EMarketEventType = {
     CheckIn: "checkin", // пополнение баланса
     CheckOut: "checkout", // вывод средств
 
+    BuyV2: "buy", // покупка в v2 версии
+
     BuyGo: "buy_go", // покупка предмета в CS:GO Маркете
     SellGo: "sell_go", // продажа предмета в CS:GO Маркете
 

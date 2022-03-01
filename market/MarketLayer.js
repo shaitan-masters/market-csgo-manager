@@ -58,7 +58,7 @@ MarketLayer.prototype.start = function() {
     FnExtensions.setWatcher(async() => {
         if(this.pingEnabled) {
             try {
-                await this.ping();
+                //await this.ping();
             } catch(e) {
                 this._log.error("Major error on market ping-pong", e);
             }
@@ -133,9 +133,10 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
             retries: 1,
         },
     };
+
     let uprice = instance.price;
 
-    return this.api.buyCreate(instance, uprice, tradeData, gotOptions).then((response) => {
+    return this.api.buyV2CreateFor(instance, uprice, tradeData, gotOptions).then((response) => {
         let message = response.result;
         message = EMarketMessage[EMarketMessage.hash(message)]; // workaround because we can receive either russian or english message
 
@@ -268,6 +269,8 @@ MarketLayer.prototype._getAccountBalance = function() {
 };
 
 MarketLayer.prototype._getBuyDiscount = async function() {
+    return 0;   
+
     let response;
     try {
         response = await this.api.accountGetDiscounts();
@@ -355,7 +358,7 @@ MarketLayer.prototype.getBalance = async function() {
 };
 
 MarketLayer.prototype.getWsAuth = function() {
-    return this.api.accountGetWSAuth().then((auth) => {
+    return this.api.accountV2GetWSAuth().then((auth) => {
         /**
          * @property {Boolean} auth.success
          * @property {String} auth.wsAuth
@@ -405,7 +408,7 @@ MarketLayer.prototype.ping = function() {
 };
 
 MarketLayer.prototype.takeItemsFromBot = function(uiBid) {
-    return this.api.sellCreateTradeRequest(uiBid, MarketApi.CREATE_TRADE_REQUEST_TYPE.OUT).then((answer) => {
+    return this.api.tradeV2RequestTake(uiBid).then((answer) => {
         if(!answer.success) {
             throw answer;
         }
@@ -446,10 +449,10 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
         end = new Date();
     }
 
-    return this.api.accountGetOperationHistory(start, end).then((history) => {
+    return this.api.accountV2GetHistory(start, end).then((history) => {
         if(history.success) {
-            let buyEvents = history.history.filter((event) => {
-                return event.h_event === EMarketEventType.BuyGo;
+            let buyEvents = history.data.filter((event) => {
+                return event.event === EMarketEventType.BuyV2;
             });
             if(!buyEvents.length) {
                 throw MiddlewareError("Buy events on " + operationDate + " not found", EErrorType.NotFound);
@@ -471,7 +474,7 @@ MarketLayer.prototype.getBoughtItems = function(operationDate, timeMargin = 60 *
 MarketLayer.prototype.getItemState = async function(marketId, operationDate) {
     let initialMargin = 45 * 1000;
     let extendedMargin = 5 * 60 * 1000;
-    let extractItem = (history) => history.find((event) => Number(event.item) === marketId);
+    let extractItem = (history) => history.find((event) => Number(event.item_id) === marketId);
 
     let getItem = async(margin) => {
         let history = await this.getBoughtItems(operationDate, margin);
