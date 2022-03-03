@@ -137,56 +137,58 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
     let uprice = instance.price;
 
     return this.api.buyV2CreateFor(instance, uprice, tradeData, gotOptions).then((response) => {
-	    if (response.success===true) {
-		    return {
-			    uiId: response.id,
-			    classId: instance.classId,
-			    instanceId: instance.instanceId,
-			    price: this._applyDiscount(instance.min_price || uprice),
-			    offerPrice: instance.min_price, // original price, provided by the market
-		    };
+	    if (!response.success) throw new Error('No "error" field, but success not true');
+
+		return {
+		    uiId: response.id,
+		    classId: instance.classId,
+		    instanceId: instance.instanceId,
+		    price: this._applyDiscount(instance.min_price || uprice),
+		    offerPrice: instance.min_price, // original price, provided by the market
+		};
+    }).catch(error=>{
+		let response = error.response.body.error;
+
+	    let message = EMarketMessage[EMarketMessage.hash(response.error)]; // workaround because we can receive either russian or english message
+
+	    switch(message) {
+		    case EMarketMessage.BadOfferPrice:
+			    this._log.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; price: ${uprice}`);
+			    throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
+
+		    case EMarketMessage.BuyOfferExpired:
+		    case EMarketMessage.SomebodyBuying:
+		    case EMarketMessage.RequestErrorNoList:
+		    case EMarketMessage.FailedToFindItem:
+		    case EMarketMessage.SteamOrBotProblems:
+		    case EMarketMessage.BotIsBanned:
+		    case EMarketMessage.ServerError7:
+			    this._log.trace(EMarketMessage.hash(message));
+			    return null;
+
+		    case EMarketMessage.NeedToTake:
+			    throw MiddlewareError("Need to withdraw items", EErrorType.NeedToTake, EErrorSource.Owner);
+		    case EMarketMessage.NeedMoney:
+			    throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: uprice});
+
+		    case EMarketMessage.InvalidTradeLink:
+			    throw MiddlewareError("Your trade link is invalid", EErrorType.InvalidToken, EErrorSource.User);
+		    case EMarketMessage.SteamInventoryPrivate:
+			    throw MiddlewareError("Your Steam inventory is closed", EErrorType.InventoryClosed, EErrorSource.User);
+		    case EMarketMessage.OfflineTradeProblem:
+			    throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
+		    case EMarketMessage.VacGameBan:
+			    throw MiddlewareError("You have VAC or game ban", EErrorType.VacGameBan, EErrorSource.User);
+		    case EMarketMessage.BuyCanceledTrades:
+			    throw MiddlewareError("Send failed due to many declined trades", EErrorType.BotCanceledTrades, EErrorSource.User);
+		    case EMarketMessage.CanceledTrades:
+			    throw MiddlewareError("You have declined too many trades", EErrorType.CanceledTrades, EErrorSource.User);
+
+		    default:
+			    this._log.debug("Unknown buy res", response);
+
+			    return null;
 	    }
-
-        let message = EMarketMessage[EMarketMessage.hash(response.error)]; // workaround because we can receive either russian or english message
-
-        switch(message) {
-            case EMarketMessage.BadOfferPrice:
-                this._log.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; price: ${uprice}`);
-                throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
-
-            case EMarketMessage.BuyOfferExpired:
-            case EMarketMessage.SomebodyBuying:
-            case EMarketMessage.RequestErrorNoList:
-            case EMarketMessage.FailedToFindItem:
-            case EMarketMessage.SteamOrBotProblems:
-            case EMarketMessage.BotIsBanned:
-            case EMarketMessage.ServerError7:
-                this._log.trace(EMarketMessage.hash(message));
-                return null;
-
-            case EMarketMessage.NeedToTake:
-                throw MiddlewareError("Need to withdraw items", EErrorType.NeedToTake, EErrorSource.Owner);
-            case EMarketMessage.NeedMoney:
-                throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: uprice});
-
-            case EMarketMessage.InvalidTradeLink:
-                throw MiddlewareError("Your trade link is invalid", EErrorType.InvalidToken, EErrorSource.User);
-            case EMarketMessage.SteamInventoryPrivate:
-                throw MiddlewareError("Your Steam inventory is closed", EErrorType.InventoryClosed, EErrorSource.User);
-            case EMarketMessage.OfflineTradeProblem:
-                throw MiddlewareError("Trade link failed, check your ability to trade", EErrorType.UnableOfflineTrade, EErrorSource.User);
-            case EMarketMessage.VacGameBan:
-                throw MiddlewareError("You have VAC or game ban", EErrorType.VacGameBan, EErrorSource.User);
-            case EMarketMessage.BuyCanceledTrades:
-                throw MiddlewareError("Send failed due to many declined trades", EErrorType.BotCanceledTrades, EErrorSource.User);
-            case EMarketMessage.CanceledTrades:
-                throw MiddlewareError("You have declined too many trades", EErrorType.CanceledTrades, EErrorSource.User);
-
-            default:
-                this._log.debug("Unknown buy res", response);
-
-                return null;
-        }
     });
 };
 
