@@ -147,9 +147,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
 		    offerPrice: instance.min_price, // original price, provided by the market
 		};
     }).catch(error=>{
-		let response = error.response.body.error;
-
-	    let message = EMarketMessage[EMarketMessage.hash(response.error)]; // workaround because we can receive either russian or english message
+	    let message = EMarketMessage[EMarketMessage.hash(error.message)]; // workaround because we can receive either russian or english message
 
 	    switch(message) {
 		    case EMarketMessage.BadOfferPrice:
