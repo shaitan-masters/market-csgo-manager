@@ -137,19 +137,19 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
     let uprice = instance.price;
 
     return this.api.buyV2CreateFor(instance, uprice, tradeData, gotOptions).then((response) => {
-        let message = response.result;
-        message = EMarketMessage[EMarketMessage.hash(message)]; // workaround because we can receive either russian or english message
+	    if (response.success===true) {
+		    return {
+			    uiId: response.id,
+			    classId: instance.classId,
+			    instanceId: instance.instanceId,
+			    price: this._applyDiscount(instance.min_price || uprice),
+			    offerPrice: instance.min_price, // original price, provided by the market
+		    };
+	    }
+
+        let message = EMarketMessage[EMarketMessage.hash(response.error)]; // workaround because we can receive either russian or english message
 
         switch(message) {
-            case EMarketMessage.Ok:
-                return {
-                    uiId: response.id,
-                    classId: instance.classId,
-                    instanceId: instance.instanceId,
-                    price: this._applyDiscount(instance.min_price || uprice),
-                    offerPrice: instance.min_price, // original price, provided by the market
-                };
-
             case EMarketMessage.BadOfferPrice:
                 this._log.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; price: ${uprice}`);
                 throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
@@ -269,7 +269,7 @@ MarketLayer.prototype._getAccountBalance = function() {
 };
 
 MarketLayer.prototype._getBuyDiscount = async function() {
-    return 0;   
+    return 0;
 
     let response;
     try {
