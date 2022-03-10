@@ -78,7 +78,7 @@ MarketLayer.prototype.buyItem = function(hashName, goodPrice, partnerId, tradeTo
     });
 };
 
-MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
+MarketLayer.prototype.buyCheapest = function(offers, tradeData, customId) {
     let badItemPrice = false;
 
     let buyAttempt = () => {
@@ -101,7 +101,7 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
             throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: instance.price});
         }
 
-        return this._tryToBuy(instance, tradeData).then((data) => {
+        return this._tryToBuy(instance, tradeData, customId).then((data) => {
             if(data === null) {
                 return buyAttempt();
             }
@@ -127,7 +127,7 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData) {
     return buyAttempt();
 };
 
-MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
+MarketLayer.prototype._tryToBuy = function(instance, tradeData, customId) {
     let gotOptions = {
         retry: {
             retries: 1,
@@ -136,7 +136,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData) {
 
     let uprice = instance.price;
 
-    return this.api.buyV2CreateFor(instance, uprice, tradeData, gotOptions).then((response) => {
+    return this.api.buyV2CreateFor(instance, uprice, tradeData, customId, gotOptions).then((response) => {
 	    if (!response.success) throw new Error('No "error" field, but success not true');
 
 		return {
