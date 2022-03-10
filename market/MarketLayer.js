@@ -128,9 +128,15 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData, customId) {
 };
 
 MarketLayer.prototype._tryToBuy = function(instance, tradeData, customId) {
+    let gotOptions = {
+        retry: {
+            retries: 1,
+        },
+    };
+
     let uprice = instance.price;
 
-    return this.api.buyV2CreateFor(instance, uprice, tradeData, customId).then((response) => {
+    return this.api.buyV2CreateFor(instance, uprice, tradeData, customId, gotOptions).then((response) => {
 	    if (!response.success) throw new Error('No "error" field, but success not true');
 
 		return {
