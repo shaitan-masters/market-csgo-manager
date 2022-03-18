@@ -151,7 +151,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData, customId) {
 
 	    switch(message) {
 		    case EMarketMessage.BadOfferPrice:
-			    this._log.trace(`${response.result}; mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; price: ${uprice}`);
+			    this._log.trace(`mhn: ${instance.hashName}; netid: ${instance.classId}_${instance.instanceId}; price: ${uprice}`);
 			    throw MiddlewareError("Unable to buy item for current price", EErrorType.BadOfferPrice, EErrorSource.Market);
 
 		    case EMarketMessage.BuyOfferExpired:
@@ -183,7 +183,7 @@ MarketLayer.prototype._tryToBuy = function(instance, tradeData, customId) {
 			    throw MiddlewareError("You have declined too many trades", EErrorType.CanceledTrades, EErrorSource.User);
 
 		    default:
-			    this._log.debug("Unknown buy res", response);
+			    this._log.debug("[!] TM: Unknown buy response");
 
 			    return null;
 	    }
