@@ -97,7 +97,10 @@ MarketLayer.prototype.buyCheapest = function(offers, tradeData, customId) {
             instance.price = Math.max(instance.price, nextInstance.price - 1);
         }
 
-        if(balance !== false && instance.price > balance) {
+        // 1$ in balance is 100, but 1$ in price is 1000. It is reason, why we split it.
+        const realPrice = instance.price / 10;
+        
+        if(balance !== false && realPrice > balance) {
             throw MiddlewareError("Need to top up bots balance", EErrorType.NeedMoney, EErrorSource.Owner, {needMoney: instance.price});
         }
 
